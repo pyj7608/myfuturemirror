@@ -56,9 +56,9 @@ export async function onRequestPost(context) {
   }
 
   const data = await context.request.json()
-  const { name, goal_date, role_details, past_status, hardship, future_message, photo, photo_uploaded } = data
+  const { name, goal_date, role_details, past_and_hardship, future_message, photo, photo_uploaded } = data
 
-  const templateType = classifyTemplate(role_details, hardship)
+  const templateType = classifyTemplate(role_details, past_and_hardship)
   const templateName = {
     A: '정통 경제지 스타일',
     B: '트렌디 테크 잡지 스타일',
@@ -76,8 +76,7 @@ export async function onRequestPost(context) {
 - 이름: ${name}
 - 목표 달성 날짜: ${fmtDate(goal_date)}
 - 현재 상태 및 성과: ${role_details}
-- 과거 상태: ${past_status}
-- 가장 힘든 순간과 극복한 힘: ${hardship}
+- 과거 상황 / 힘들었던 순간 / 극복한 힘: ${past_and_hardship}
 - 과거 자신에게 한 마디: ${future_message}${photoContext}
 
 [작성 지침]

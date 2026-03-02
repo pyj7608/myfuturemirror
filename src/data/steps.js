@@ -26,18 +26,11 @@ export const STEPS = [
     placeholder: '현재 하시는 일과 이루신 성과를 자세히 알려주세요...',
   },
   {
-    id: 'past_status',
+    id: 'past_and_hardship',
     question: (d) =>
-      `${d.name}씨, 성공하기 전에는 어떤 상황에서 꿈을 준비하고 계셨나요?\n그때의 경험이 지금의 성과와 어떻게 이어졌는지도 듣고 싶어요. 🌱`,
+      `${d.name}씨, 꿈을 이루기 전 어떤 상황이셨나요?\n가장 힘들었던 순간과 그걸 버텨낼 수 있었던 힘도 함께 들려주세요. 💪`,
     inputType: 'textarea',
-    placeholder: '성공하기 전의 상황과 준비 과정을 알려주세요...',
-  },
-  {
-    id: 'hardship',
-    question: (d) =>
-      `${d.name}씨, 꿈을 이루는 과정에서 가장 힘들었던 순간은 언제였고,\n그 어려움을 극복하는 데 무엇이 가장 큰 힘이 되었나요? 💪`,
-    inputType: 'textarea',
-    placeholder: '힘들었던 순간과 극복할 수 있었던 힘을 알려주세요...',
+    placeholder: '그 시절의 상황, 가장 힘들었던 순간, 극복할 수 있었던 이유를 적어주세요...',
   },
   {
     id: 'future_message',
