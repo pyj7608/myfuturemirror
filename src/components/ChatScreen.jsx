@@ -5,6 +5,20 @@ function delay(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
+async function fetchReaction(stepId, answer, interviewData, nextStepId) {
+  try {
+    const res = await fetch('/api/get-reaction', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ stepId, answer, interviewData, nextStepId }),
+    })
+    if (!res.ok) return null
+    return await res.json()
+  } catch {
+    return null
+  }
+}
+
 export default function ChatScreen({ onComplete, onBack }) {
   const [messages, setMessages] = useState([])
   const [isTyping, setIsTyping] = useState(false)
@@ -13,6 +27,7 @@ export default function ChatScreen({ onComplete, onBack }) {
   const [selectedDate, setSelectedDate] = useState('')
   const [photoDataUrl, setPhotoDataUrl] = useState(null)
   const [interviewData, setInterviewData] = useState({})
+  const [currentExample, setCurrentExample] = useState('')
   const messagesEndRef = useRef(null)
   const hasInit = useRef(false)
 
@@ -26,32 +41,71 @@ export default function ChatScreen({ onComplete, onBack }) {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, isTyping])
 
+  function addMessage(text, role) {
+    setMessages((prev) => [...prev, { id: Date.now() + Math.random(), role, text }])
+  }
+
   async function triggerQuestion(stepIdx, data) {
     const step = STEPS[stepIdx]
     const text = typeof step.question === 'function' ? step.question(data) : step.question
     setIsTyping(true)
-    await delay(800 + Math.random() * 600)
+    await delay(800 + Math.random() * 500)
     setIsTyping(false)
-    setMessages((prev) => [...prev, { id: Date.now(), role: 'ai', text }])
+    addMessage(text, 'ai')
   }
 
   async function handleAnswer(answerId, answerValue, displayText) {
     const newData = { ...interviewData, [answerId]: answerValue }
     setInterviewData(newData)
-    setMessages((prev) => [
-      ...prev,
-      { id: Date.now() + 1, role: 'user', text: displayText || answerValue },
-    ])
+    addMessage(displayText || answerValue, 'user')
     setInputValue('')
     setSelectedDate('')
+    setCurrentExample('')
 
-    const next = currentStep + 1
-    setCurrentStep(next)
+    const nextIdx = currentStep + 1
+    setCurrentStep(nextIdx)
 
-    if (next < STEPS.length) {
-      await delay(300)
-      triggerQuestion(next, newData)
+    if (nextIdx >= STEPS.length) return
+
+    const nextStep = STEPS[nextIdx]
+
+    // 이름 입력 후: 간단한 환영 인사 (API 불필요)
+    if (answerId === 'name') {
+      setIsTyping(true)
+      await delay(700)
+      setIsTyping(false)
+      addMessage(`반갑습니다, ${answerValue}씨! 정말 설레는 인터뷰가 될 것 같아요 ✨`, 'ai')
+      await delay(400)
+      await triggerQuestion(nextIdx, newData)
+      return
     }
+
+    // 날짜 입력 후: 추임새만 (예시 불필요)
+    if (answerId === 'goal_date') {
+      setIsTyping(true)
+      const reactionData = await fetchReaction(answerId, answerValue, newData, nextStep.id)
+      setIsTyping(false)
+      if (reactionData?.reaction) {
+        addMessage(reactionData.reaction, 'ai')
+        await delay(400)
+      }
+      setCurrentExample(reactionData?.example || '')
+      await triggerQuestion(nextIdx, newData)
+      return
+    }
+
+    // 나머지 단계: 추임새 + 동적 예시
+    setIsTyping(true)
+    const reactionData = await fetchReaction(answerId, answerValue, newData, nextStep.id)
+    setIsTyping(false)
+
+    if (reactionData?.reaction) {
+      addMessage(reactionData.reaction, 'ai')
+      await delay(400)
+    }
+
+    setCurrentExample(reactionData?.example || '')
+    await triggerQuestion(nextIdx, newData)
   }
 
   function handlePhotoUpload(e) {
@@ -64,14 +118,7 @@ export default function ChatScreen({ onComplete, onBack }) {
 
   function handlePhotoSubmit(withPhoto) {
     const finalData = { ...interviewData, photo_uploaded: withPhoto }
-    setMessages((prev) => [
-      ...prev,
-      {
-        id: Date.now() + 1,
-        role: 'user',
-        text: withPhoto ? '📷 사진을 업로드했어요!' : '사진 없이 진행할게요.',
-      },
-    ])
+    addMessage(withPhoto ? '📷 사진을 업로드했어요!' : '사진 없이 진행할게요.', 'user')
     onComplete(finalData, withPhoto ? photoDataUrl : null)
   }
 
@@ -82,9 +129,7 @@ export default function ChatScreen({ onComplete, onBack }) {
   return (
     <div className="chat-screen">
       <header className="chat-header">
-        <button className="icon-btn" onClick={onBack} aria-label="처음으로">
-          ←
-        </button>
+        <button className="icon-btn" onClick={onBack} aria-label="처음으로">←</button>
         <div className="header-profile">
           <div className="avatar">📰</div>
           <div>
@@ -92,9 +137,7 @@ export default function ChatScreen({ onComplete, onBack }) {
             <div className="header-sub">FutureMirror 특별 인터뷰</div>
           </div>
         </div>
-        <div className="progress-badge">
-          {currentStep + 1} / {STEPS.length}
-        </div>
+        <div className="progress-badge">{currentStep + 1} / {STEPS.length}</div>
       </header>
 
       <div className="progress-bar">
@@ -107,10 +150,7 @@ export default function ChatScreen({ onComplete, onBack }) {
             {msg.role === 'ai' && <div className="msg-avatar">📰</div>}
             <div className="msg-bubble">
               {msg.text.split('\n').map((line, i, arr) => (
-                <span key={i}>
-                  {line}
-                  {i < arr.length - 1 && <br />}
-                </span>
+                <span key={i}>{line}{i < arr.length - 1 && <br />}</span>
               ))}
             </div>
           </div>
@@ -149,9 +189,7 @@ export default function ChatScreen({ onComplete, onBack }) {
               className="send-btn"
               disabled={!inputValue.trim()}
               onClick={() => handleAnswer(step.id, inputValue.trim())}
-            >
-              ↑
-            </button>
+            >↑</button>
           </div>
         )}
 
@@ -166,13 +204,8 @@ export default function ChatScreen({ onComplete, onBack }) {
             <button
               className="send-btn"
               disabled={!selectedDate}
-              onClick={() =>
-                selectedDate &&
-                handleAnswer(step.id, selectedDate, fmtDate(selectedDate))
-              }
-            >
-              ↑
-            </button>
+              onClick={() => selectedDate && handleAnswer(step.id, selectedDate, fmtDate(selectedDate))}
+            >↑</button>
           </div>
         )}
 
@@ -189,15 +222,16 @@ export default function ChatScreen({ onComplete, onBack }) {
               }}
               autoFocus
             />
+            {currentExample ? (
+              <div className="input-example">{currentExample}</div>
+            ) : null}
             <div className="input-footer">
               <span className="input-hint">Ctrl + Enter로 전송</span>
               <button
                 className="send-btn"
                 disabled={!inputValue.trim()}
                 onClick={() => handleAnswer(step.id, inputValue.trim())}
-              >
-                ↑
-              </button>
+              >↑</button>
             </div>
           </div>
         )}
@@ -210,12 +244,7 @@ export default function ChatScreen({ onComplete, onBack }) {
             <div className="photo-btns">
               <label className="btn-upload">
                 📷 사진 업로드
-                <input
-                  type="file"
-                  accept="image/*"
-                  style={{ display: 'none' }}
-                  onChange={handlePhotoUpload}
-                />
+                <input type="file" accept="image/*" style={{ display: 'none' }} onChange={handlePhotoUpload} />
               </label>
               <button className="btn-skip" onClick={() => handlePhotoSubmit(false)}>
                 건너뛰기 →
