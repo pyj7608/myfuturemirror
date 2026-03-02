@@ -22,6 +22,7 @@ async function fetchReaction(stepId, answer, interviewData, nextStepId) {
 export default function ChatScreen({ onComplete, onBack }) {
   const [messages, setMessages] = useState([])
   const [isTyping, setIsTyping] = useState(false)
+  const [isInputActive, setIsInputActive] = useState(false) // 질문 표시 후에만 true
   const [currentStep, setCurrentStep] = useState(0)
   const [inputValue, setInputValue] = useState('')
   const [selectedDate, setSelectedDate] = useState('')
@@ -30,6 +31,7 @@ export default function ChatScreen({ onComplete, onBack }) {
   const [currentExample, setCurrentExample] = useState('')
   const messagesEndRef = useRef(null)
   const hasInit = useRef(false)
+  const isProcessing = useRef(false) // 중복 제출 방지
 
   useEffect(() => {
     if (hasInit.current) return
@@ -45,43 +47,64 @@ export default function ChatScreen({ onComplete, onBack }) {
     setMessages((prev) => [...prev, { id: Date.now() + Math.random(), role, text }])
   }
 
+  // 질문 표시 — 완료된 후에만 입력창 활성화
   async function triggerQuestion(stepIdx, data) {
+    setIsInputActive(false)
     const step = STEPS[stepIdx]
     const text = typeof step.question === 'function' ? step.question(data) : step.question
     setIsTyping(true)
     await delay(800 + Math.random() * 500)
     setIsTyping(false)
     addMessage(text, 'ai')
+    setIsInputActive(true) // 질문이 화면에 추가된 후에만 입력창 열기
   }
 
   async function handleAnswer(answerId, answerValue, displayText) {
-    const newData = { ...interviewData, [answerId]: answerValue }
-    setInterviewData(newData)
-    addMessage(displayText || answerValue, 'user')
-    setInputValue('')
-    setSelectedDate('')
-    setCurrentExample('')
+    if (isProcessing.current) return // 중복 호출 방지
+    isProcessing.current = true
+    setIsInputActive(false) // 즉시 입력창 닫기
 
-    const nextIdx = currentStep + 1
-    setCurrentStep(nextIdx)
+    try {
+      const newData = { ...interviewData, [answerId]: answerValue }
+      setInterviewData(newData)
+      addMessage(displayText || answerValue, 'user')
+      setInputValue('')
+      setSelectedDate('')
+      setCurrentExample('')
 
-    if (nextIdx >= STEPS.length) return
+      const nextIdx = currentStep + 1
+      setCurrentStep(nextIdx)
 
-    const nextStep = STEPS[nextIdx]
+      if (nextIdx >= STEPS.length) return
 
-    // 이름 입력 후: 간단한 환영 인사 (API 불필요)
-    if (answerId === 'name') {
-      setIsTyping(true)
-      await delay(700)
-      setIsTyping(false)
-      addMessage(`반갑습니다, ${answerValue}씨! 정말 설레는 인터뷰가 될 것 같아요 ✨`, 'ai')
-      await delay(400)
-      await triggerQuestion(nextIdx, newData)
-      return
-    }
+      const nextStep = STEPS[nextIdx]
 
-    // 날짜 입력 후: 추임새만 (예시 불필요)
-    if (answerId === 'goal_date') {
+      // 이름 입력 후: 환영 인사 (API 불필요)
+      if (answerId === 'name') {
+        setIsTyping(true)
+        await delay(700)
+        setIsTyping(false)
+        addMessage(`반갑습니다, ${answerValue}씨! 정말 설레는 인터뷰가 될 것 같아요 ✨`, 'ai')
+        await delay(400)
+        await triggerQuestion(nextIdx, newData)
+        return
+      }
+
+      // 날짜 입력 후: 추임새 + 다음 질문
+      if (answerId === 'goal_date') {
+        setIsTyping(true)
+        const reactionData = await fetchReaction(answerId, answerValue, newData, nextStep.id)
+        setIsTyping(false)
+        if (reactionData?.reaction) {
+          addMessage(reactionData.reaction, 'ai')
+          await delay(400)
+        }
+        setCurrentExample(reactionData?.example || '')
+        await triggerQuestion(nextIdx, newData)
+        return
+      }
+
+      // 나머지 단계: 추임새 + 동적 예시 + 다음 질문
       setIsTyping(true)
       const reactionData = await fetchReaction(answerId, answerValue, newData, nextStep.id)
       setIsTyping(false)
@@ -91,21 +114,9 @@ export default function ChatScreen({ onComplete, onBack }) {
       }
       setCurrentExample(reactionData?.example || '')
       await triggerQuestion(nextIdx, newData)
-      return
+    } finally {
+      isProcessing.current = false
     }
-
-    // 나머지 단계: 추임새 + 동적 예시
-    setIsTyping(true)
-    const reactionData = await fetchReaction(answerId, answerValue, newData, nextStep.id)
-    setIsTyping(false)
-
-    if (reactionData?.reaction) {
-      addMessage(reactionData.reaction, 'ai')
-      await delay(400)
-    }
-
-    setCurrentExample(reactionData?.example || '')
-    await triggerQuestion(nextIdx, newData)
   }
 
   function handlePhotoUpload(e) {
@@ -172,7 +183,7 @@ export default function ChatScreen({ onComplete, onBack }) {
       </div>
 
       <div className="input-zone">
-        {!isTyping && step.inputType === 'text' && (
+        {isInputActive && step.inputType === 'text' && (
           <div className="row-input">
             <input
               type="text"
@@ -193,7 +204,7 @@ export default function ChatScreen({ onComplete, onBack }) {
           </div>
         )}
 
-        {!isTyping && step.inputType === 'date' && (
+        {isInputActive && step.inputType === 'date' && (
           <div className="date-row">
             <input
               type="date"
@@ -209,7 +220,7 @@ export default function ChatScreen({ onComplete, onBack }) {
           </div>
         )}
 
-        {!isTyping && step.inputType === 'textarea' && (
+        {isInputActive && step.inputType === 'textarea' && (
           <div className="col-input">
             <textarea
               value={inputValue}
@@ -222,9 +233,9 @@ export default function ChatScreen({ onComplete, onBack }) {
               }}
               autoFocus
             />
-            {currentExample ? (
+            {currentExample && (
               <div className="input-example">{currentExample}</div>
-            ) : null}
+            )}
             <div className="input-footer">
               <span className="input-hint">Ctrl + Enter로 전송</span>
               <button
@@ -236,7 +247,7 @@ export default function ChatScreen({ onComplete, onBack }) {
           </div>
         )}
 
-        {!isTyping && step.inputType === 'photo' && (
+        {isInputActive && step.inputType === 'photo' && (
           <div className="photo-zone">
             {photoDataUrl && (
               <img src={photoDataUrl} alt="업로드 미리보기" className="photo-preview" />
