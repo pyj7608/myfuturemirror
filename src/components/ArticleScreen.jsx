@@ -1,10 +1,16 @@
+import { Fragment } from 'react'
 import { fmtDate } from '../data/steps'
 
-export default function ArticleScreen({ article, interviewData, onRestart }) {
-  const { template_type: type, title, subtitle, byline, paragraphs, imageUrl } = article
+function BodyImage({ src, className }) {
+  if (!src) return null
+  return <img className={className} src={src} alt="기사 삽입 이미지" />
+}
 
-  const photoEl = imageUrl ? (
-    <img className={`${type.toLowerCase()}-photo`} src={imageUrl} alt="기사 사진" />
+export default function ArticleScreen({ article, interviewData, onRestart }) {
+  const { template_type: type, title, subtitle, byline, paragraphs, headerImage, bodyImage } = article
+
+  const headerEl = headerImage ? (
+    <img className={`${type.toLowerCase()}-photo`} src={headerImage} alt="기사 대표 사진" />
   ) : (
     <div className={`${type.toLowerCase()}-photo-ph`}>📸</div>
   )
@@ -23,11 +29,14 @@ export default function ArticleScreen({ article, interviewData, onRestart }) {
               <h1 className="a-title">{title}</h1>
               <p className="a-subtitle">{subtitle}</p>
             </div>
-            {photoEl}
+            {headerEl}
             <div className="a-byline">{byline}</div>
             <div className="a-body">
               {paragraphs.map((p, i) => (
-                <p key={i}>{p}</p>
+                <Fragment key={i}>
+                  <p>{p}</p>
+                  {i === 1 && <BodyImage src={bodyImage} className="body-img body-img--a" />}
+                </Fragment>
               ))}
             </div>
           </div>
@@ -40,11 +49,14 @@ export default function ArticleScreen({ article, interviewData, onRestart }) {
               <h1 className="b-title">{title}</h1>
               <p className="b-subtitle">{subtitle}</p>
             </div>
-            {photoEl}
+            {headerEl}
             <div className="b-byline">{byline}</div>
             <div className="b-body">
               {paragraphs.map((p, i) => (
-                <p key={i}>{p}</p>
+                <Fragment key={i}>
+                  <p>{p}</p>
+                  {i === 1 && <BodyImage src={bodyImage} className="body-img body-img--b" />}
+                </Fragment>
               ))}
             </div>
           </div>
@@ -57,10 +69,13 @@ export default function ArticleScreen({ article, interviewData, onRestart }) {
               <h1 className="c-title">{title}</h1>
               <p className="c-subtitle">{subtitle}</p>
             </div>
-            {photoEl}
+            {headerEl}
             <div className="c-body">
               {paragraphs.map((p, i) => (
-                <p key={i}>{p}</p>
+                <Fragment key={i}>
+                  <p>{p}</p>
+                  {i === 1 && <BodyImage src={bodyImage} className="body-img body-img--c" />}
+                </Fragment>
               ))}
             </div>
             <div className="c-byline">{byline}</div>

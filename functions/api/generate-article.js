@@ -15,6 +15,39 @@ function classifyTemplate(roleDetails = '', hardship = '') {
   return 'C'
 }
 
+async function analyzePhoto(photo, apiKey) {
+  try {
+    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        messages: [
+          {
+            role: 'user',
+            content: [
+              { type: 'image_url', image_url: { url: photo, detail: 'low' } },
+              {
+                type: 'text',
+                text: '이 사진을 2~3문장으로 묘사해주세요. 인물, 배경, 분위기를 중심으로.',
+              },
+            ],
+          },
+        ],
+        max_tokens: 200,
+      }),
+    })
+    if (!res.ok) return ''
+    const json = await res.json()
+    return json.choices[0].message.content || ''
+  } catch {
+    return ''
+  }
+}
+
 export async function onRequestPost(context) {
   const { OPENAI_API_KEY } = context.env
 
@@ -23,7 +56,7 @@ export async function onRequestPost(context) {
   }
 
   const data = await context.request.json()
-  const { name, goal_date, role_details, past_status, hardship, future_message } = data
+  const { name, goal_date, role_details, past_status, hardship, future_message, photo, photo_uploaded } = data
 
   const templateType = classifyTemplate(role_details, hardship)
   const templateName = {
@@ -31,6 +64,10 @@ export async function onRequestPost(context) {
     B: '트렌디 테크 잡지 스타일',
     C: '소셜 카드뉴스 스타일',
   }[templateType]
+
+  // 사진이 있으면 vision으로 분석
+  const photoDesc = photo_uploaded && photo ? await analyzePhoto(photo, OPENAI_API_KEY) : ''
+  const photoContext = photoDesc ? `\n- 업로드된 사진 묘사: ${photoDesc}` : ''
 
   const prompt = `당신은 전문 AI 기자입니다. 아래 인터뷰 데이터를 바탕으로 실제 신문 기사를 작성해주세요.
 기사 톤: ${templateName}
@@ -41,7 +78,7 @@ export async function onRequestPost(context) {
 - 현재 상태 및 성과: ${role_details}
 - 과거 상태: ${past_status}
 - 가장 힘든 순간과 극복한 힘: ${hardship}
-- 과거 자신에게 한 마디: ${future_message}
+- 과거 자신에게 한 마디: ${future_message}${photoContext}
 
 [작성 지침]
 1. 기사 작성일: ${fmtDate(goal_date)}
@@ -50,9 +87,10 @@ export async function onRequestPost(context) {
 4. 본문 5개 문단: 현재 성과 소개 → 과거 준비 과정 → 힘들었던 순간 → 극복 과정 → 과거 자신에게 전하는 말
 5. 사용자 구어체를 전문 기자의 기사체로 재구성
 6. 불필요한 섹션 제목 금지, 중복 표현 제거
+7. image_prompt: 기사 내용을 대표하는 이미지 생성용 영어 프롬프트 (20단어 이내, 인물+배경+분위기 묘사)
 
 아래 JSON 형식으로만 응답하세요. JSON 외 다른 텍스트는 포함하지 마세요:
-{"title":"...","subtitle":"...","byline":"AI 기자 | ${fmtDate(goal_date)}","paragraphs":["p1","p2","p3","p4","p5"]}`
+{"title":"...","subtitle":"...","byline":"AI 기자 | ${fmtDate(goal_date)}","paragraphs":["p1","p2","p3","p4","p5"],"image_prompt":"..."}`
 
   const res = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',

@@ -1,7 +1,7 @@
 const STYLE_PROMPTS = {
-  A: 'professional business executive, corporate office background, formal suit, confident pose, newspaper portrait style, high quality photography, cinematic lighting',
-  B: 'tech entrepreneur, modern workspace, laptop and screens, creative studio, magazine cover style, vibrant colors, dynamic composition',
-  C: 'inspiring successful person, warm natural lighting, lifestyle photography, joyful expression, social media aesthetic, soft bokeh background',
+  A: 'professional business executive, corporate office, formal suit, confident, cinematic lighting, newspaper style',
+  B: 'tech entrepreneur, modern workspace, laptop, creative studio, vibrant colors, magazine style',
+  C: 'inspiring successful person, warm natural lighting, joyful, lifestyle photography, soft bokeh',
 }
 
 function arrayBufferToBase64(buffer) {
@@ -20,21 +20,24 @@ export async function onRequestPost(context) {
     return Response.json({ error: 'AI binding을 사용할 수 없습니다.' }, { status: 500 })
   }
 
-  const { template_type } = await context.request.json()
+  const { prompt, template_type, variant = 'header' } = await context.request.json()
+
   const style = STYLE_PROMPTS[template_type] ?? STYLE_PROMPTS.C
-  const prompt = `A successful Korean professional. ${style}. Photorealistic, high resolution.`
+  const variantSuffix = variant === 'body' ? ', wide establishing shot, dramatic moment, symbolic' : ''
+  const finalPrompt = prompt
+    ? `${prompt}, ${style}${variantSuffix}, photorealistic, high quality`
+    : `Successful Korean professional. ${style}${variantSuffix}. Photorealistic.`
 
   try {
     const response = await AI.run('@cf/stabilityai/stable-diffusion-xl-base-1.0', {
-      prompt,
+      prompt: finalPrompt,
       num_steps: 20,
     })
 
     const arrayBuffer = await new Response(response).arrayBuffer()
     const base64 = arrayBufferToBase64(arrayBuffer)
-    const imageUrl = `data:image/png;base64,${base64}`
 
-    return Response.json({ imageUrl })
+    return Response.json({ imageUrl: `data:image/png;base64,${base64}` })
   } catch (err) {
     return Response.json({ error: err.message }, { status: 500 })
   }

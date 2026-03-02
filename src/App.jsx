@@ -3,10 +3,26 @@ import StartScreen from './components/StartScreen'
 import ChatScreen from './components/ChatScreen'
 import ArticleScreen from './components/ArticleScreen'
 
+async function fetchImage(prompt, templateType, variant = 'header') {
+  try {
+    const res = await fetch('/api/generate-image', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt, template_type: templateType, variant }),
+    })
+    if (!res.ok) return null
+    const data = await res.json()
+    return data.imageUrl || null
+  } catch {
+    return null
+  }
+}
+
 export default function App() {
   const [screen, setScreen] = useState('start')
   const [article, setArticle] = useState(null)
   const [interviewData, setInterviewData] = useState(null)
+  const [loadingMsg, setLoadingMsg] = useState('')
   const [error, setError] = useState(null)
 
   async function handleInterviewComplete(data, photoUrl) {
@@ -15,39 +31,32 @@ export default function App() {
     setError(null)
 
     try {
+      // 1단계: 기사 생성 (사진 있으면 vision 분석 포함)
+      setLoadingMsg('AI 기자가 기사를 작성하고 있어요 ✍️')
       const articleRes = await fetch('/api/generate-article', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
+        body: JSON.stringify({ ...data, photo: photoUrl }),
       })
       if (!articleRes.ok) {
         const err = await articleRes.json().catch(() => ({}))
         throw new Error(err.error || '기사 생성에 실패했습니다.')
       }
       const articleData = await articleRes.json()
+      const { image_prompt, template_type } = articleData
 
-      let imageUrl = photoUrl
-      if (!photoUrl) {
-        try {
-          const imgRes = await fetch('/api/generate-image', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              name: data.name,
-              role_details: data.role_details,
-              template_type: articleData.template_type,
-            }),
-          })
-          if (imgRes.ok) {
-            const imgData = await imgRes.json()
-            imageUrl = imgData.imageUrl
-          }
-        } catch {
-          // 이미지 생성 실패는 비치명적 — 기사는 그대로 표시
-        }
-      }
+      // 2단계: 이미지 생성 (헤더 + 본문 병렬)
+      setLoadingMsg('이미지를 생성하고 있어요 🎨')
+      const [headerImage, bodyImage] = await Promise.all([
+        // 헤더: 사용자 사진 우선, 없으면 AI 생성
+        photoUrl
+          ? Promise.resolve(photoUrl)
+          : fetchImage(image_prompt, template_type, 'header'),
+        // 본문 중간: 항상 AI 생성
+        fetchImage(image_prompt, template_type, 'body'),
+      ])
 
-      setArticle({ ...articleData, imageUrl })
+      setArticle({ ...articleData, headerImage, bodyImage })
       setScreen('article')
     } catch (err) {
       setError(err.message)
@@ -67,9 +76,9 @@ export default function App() {
       <div className="loading-overlay">
         <div className="loading-spinner" />
         <p className="loading-text">
-          AI 기자가 기사를 작성하고 있어요
+          {loadingMsg}
           <br />
-          잠시만 기다려주세요 ✍️
+          잠시만 기다려주세요
         </p>
       </div>
     )
