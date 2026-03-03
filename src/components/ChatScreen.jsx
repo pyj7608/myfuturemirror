@@ -1,16 +1,19 @@
 import { useState, useEffect, useRef } from 'react'
 import { STEPS, fmtDate } from '../data/steps'
 
+const INITIAL_MESSAGE =
+  '안녕하세요! 저는 FutureMirror의 AI 기자입니다 ✨\n미래의 성공한 당신을 인터뷰하게 되어 정말 기쁩니다.\n먼저 이름이나 닉네임을 알려주실래요?'
+
 function delay(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
-async function fetchReaction(stepId, answer, interviewData, nextStepId) {
+async function fetchReaction(stepId, answer, interviewData, nextStep) {
   try {
     const res = await fetch('/api/get-reaction', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ stepId, answer, interviewData, nextStepId }),
+      body: JSON.stringify({ stepId, answer, interviewData, nextStep }),
     })
     if (!res.ok) return null
     return await res.json()
@@ -22,7 +25,7 @@ async function fetchReaction(stepId, answer, interviewData, nextStepId) {
 export default function ChatScreen({ onComplete, onBack }) {
   const [messages, setMessages] = useState([])
   const [isTyping, setIsTyping] = useState(false)
-  const [isInputActive, setIsInputActive] = useState(false) // 질문 표시 후에만 true
+  const [isInputActive, setIsInputActive] = useState(false)
   const [currentStep, setCurrentStep] = useState(0)
   const [inputValue, setInputValue] = useState('')
   const [selectedDate, setSelectedDate] = useState('')
@@ -31,12 +34,17 @@ export default function ChatScreen({ onComplete, onBack }) {
   const [currentExample, setCurrentExample] = useState('')
   const messagesEndRef = useRef(null)
   const hasInit = useRef(false)
-  const isProcessing = useRef(false) // 중복 제출 방지
+  const isProcessing = useRef(false)
 
   useEffect(() => {
     if (hasInit.current) return
     hasInit.current = true
-    triggerQuestion(0, {})
+    setIsTyping(true)
+    delay(800).then(() => {
+      setIsTyping(false)
+      addMessage(INITIAL_MESSAGE, 'ai')
+      setIsInputActive(true)
+    })
   }, []) // eslint-disable-line
 
   useEffect(() => {
@@ -47,22 +55,10 @@ export default function ChatScreen({ onComplete, onBack }) {
     setMessages((prev) => [...prev, { id: Date.now() + Math.random(), role, text }])
   }
 
-  // 질문 표시 — 완료된 후에만 입력창 활성화
-  async function triggerQuestion(stepIdx, data) {
-    setIsInputActive(false)
-    const step = STEPS[stepIdx]
-    const text = typeof step.question === 'function' ? step.question(data) : step.question
-    setIsTyping(true)
-    await delay(800 + Math.random() * 500)
-    setIsTyping(false)
-    addMessage(text, 'ai')
-    setIsInputActive(true) // 질문이 화면에 추가된 후에만 입력창 열기
-  }
-
   async function handleAnswer(answerId, answerValue, displayText) {
-    if (isProcessing.current) return // 중복 호출 방지
+    if (isProcessing.current) return
     isProcessing.current = true
-    setIsInputActive(false) // 즉시 입력창 닫기
+    setIsInputActive(false)
 
     try {
       const newData = { ...interviewData, [answerId]: answerValue }
@@ -79,41 +75,15 @@ export default function ChatScreen({ onComplete, onBack }) {
 
       const nextStep = STEPS[nextIdx]
 
-      // 이름 입력 후: 환영 인사 (API 불필요)
-      if (answerId === 'name') {
-        setIsTyping(true)
-        await delay(700)
-        setIsTyping(false)
-        addMessage(`반갑습니다, ${answerValue}씨! 정말 설레는 인터뷰가 될 것 같아요 ✨`, 'ai')
-        await delay(400)
-        await triggerQuestion(nextIdx, newData)
-        return
-      }
-
-      // 날짜 입력 후: 추임새 + 다음 질문
-      if (answerId === 'goal_date') {
-        setIsTyping(true)
-        const reactionData = await fetchReaction(answerId, answerValue, newData, nextStep.id)
-        setIsTyping(false)
-        if (reactionData?.reaction) {
-          addMessage(reactionData.reaction, 'ai')
-          await delay(400)
-        }
-        setCurrentExample(reactionData?.example || '')
-        await triggerQuestion(nextIdx, newData)
-        return
-      }
-
-      // 나머지 단계: 추임새 + 동적 예시 + 다음 질문
       setIsTyping(true)
-      const reactionData = await fetchReaction(answerId, answerValue, newData, nextStep.id)
+      const result = await fetchReaction(answerId, answerValue, newData, nextStep)
       setIsTyping(false)
-      if (reactionData?.reaction) {
-        addMessage(reactionData.reaction, 'ai')
-        await delay(400)
+
+      if (result?.message) {
+        addMessage(result.message, 'ai')
       }
-      setCurrentExample(reactionData?.example || '')
-      await triggerQuestion(nextIdx, newData)
+      setCurrentExample(result?.example || '')
+      setIsInputActive(true)
     } finally {
       isProcessing.current = false
     }
