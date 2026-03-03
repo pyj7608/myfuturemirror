@@ -7,9 +7,7 @@ function BodyImage({ src, className }) {
 }
 
 export default function ArticleScreen({ article, interviewData, onRestart }) {
-  const { template_type: rawType, title, subtitle, byline, paragraphs, headerImage, bodyImage } = article
-  // Type D는 Type C 비주얼 스타일 재사용
-  const type = rawType === 'D' ? 'C' : rawType
+  const { template_type: type, title, subtitle, byline, paragraphs, headerImage, bodyImage } = article
 
   const headerEl = headerImage ? (
     <img className={`${type.toLowerCase()}-photo`} src={headerImage} alt="기사 대표 사진" />
@@ -81,6 +79,26 @@ export default function ArticleScreen({ article, interviewData, onRestart }) {
               ))}
             </div>
             <div className="c-byline">{byline}</div>
+          </div>
+        )}
+
+        {type === 'D' && (
+          <div className="article-d">
+            <div className="d-header">
+              <div className="d-tag">Growth Story</div>
+              <h1 className="d-title">{title}</h1>
+              <p className="d-subtitle">{subtitle}</p>
+            </div>
+            {headerEl}
+            <div className="d-body">
+              {paragraphs.map((p, i) => (
+                <Fragment key={i}>
+                  <p>{p}</p>
+                  {i === 1 && <BodyImage src={bodyImage} className="body-img body-img--d" />}
+                </Fragment>
+              ))}
+            </div>
+            <div className="d-byline">{byline}</div>
           </div>
         )}
       </div>

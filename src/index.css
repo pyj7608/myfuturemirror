@@ -465,6 +465,35 @@ body {
 }
 .c-byline { padding: 12px 20px 20px; font-size: 12px; color: #9CA3AF; }
 
+/* ===== 기사 Type D: 학업/개인성취 ===== */
+.article-d { background: var(--white); font-family: -apple-system, BlinkMacSystemFont, sans-serif; }
+.d-header { background: linear-gradient(135deg, #1B4332, #40916C); padding: 28px; color: var(--white); }
+.d-tag {
+  display: inline-block;
+  background: rgba(255,255,255,0.2);
+  padding: 4px 14px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 700;
+  margin-bottom: 14px;
+  letter-spacing: 1px;
+}
+.d-title { font-size: 24px; font-weight: 800; line-height: 1.35; margin-bottom: 14px; }
+.d-subtitle { font-size: 15px; background: rgba(0,0,0,0.15); padding: 10px 14px; border-radius: 10px; line-height: 1.6; }
+.d-photo { width: 100%; max-height: 300px; object-fit: cover; display: block; }
+.d-photo-ph { width: 100%; height: 240px; background: linear-gradient(135deg, rgba(27,67,50,0.15), rgba(64,145,108,0.1)); display: flex; align-items: center; justify-content: center; font-size: 56px; }
+.d-body { padding: 20px; display: flex; flex-direction: column; gap: 12px; }
+.d-body p {
+  font-size: 17px;
+  line-height: 1.75;
+  color: #374151;
+  background: #F0FDF4;
+  padding: 16px 18px;
+  border-radius: 14px;
+  border-left: 4px solid #40916C;
+}
+.d-byline { padding: 12px 20px 20px; font-size: 12px; color: #9CA3AF; }
+
 /* ===== 본문 삽입 이미지 ===== */
 .body-img {
   width: 100%;
@@ -487,6 +516,12 @@ body {
   border-radius: 14px;
   margin-bottom: 4px;
 }
+.body-img--d {
+  max-height: 260px;
+  object-fit: cover;
+  border-radius: 14px;
+  margin-bottom: 4px;
+}
 
 /* ===== 반응형 ===== */
 @media (max-width: 480px) {
@@ -495,7 +530,7 @@ body {
   .msg-bubble { max-width: 84%; }
   .a-title { font-size: 22px; }
   .b-title { font-size: 22px; }
-  .c-title { font-size: 21px; }
+  .c-title, .d-title { font-size: 21px; }
   .a-body, .b-body { padding: 20px 18px; }
-  .a-header, .b-header, .c-header { padding: 20px; }
+  .a-header, .b-header, .c-header, .d-header { padding: 20px; }
 }
