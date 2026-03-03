@@ -1,5 +1,6 @@
 function fmtDate(str) {
   if (!str) return ''
+  if (str.includes('년')) return str  // 이미 포맷된 한국어 날짜는 그대로 반환
   const d = new Date(str + 'T00:00:00')
   return `${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.getDate()}일`
 }
