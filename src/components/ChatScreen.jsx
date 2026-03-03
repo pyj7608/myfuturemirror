@@ -8,6 +8,18 @@ function delay(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
+function cleanName(input) {
+  const suffixes = ['이라고 합니다', '라고 합니다', '입니다', '이에요', '예요', '이요', '이야', '야']
+  let name = input.trim().replace(/[.!?~]+$/, '').trim()
+  for (const suffix of suffixes) {
+    if (name.endsWith(suffix) && name.length > suffix.length + 1) {
+      name = name.slice(0, -suffix.length).trim()
+      break
+    }
+  }
+  return name
+}
+
 async function fetchReaction(stepId, answer, interviewData, nextStep) {
   try {
     const res = await fetch('/api/get-reaction', {
@@ -182,14 +194,14 @@ export default function ChatScreen({ onComplete, onBack }) {
               onChange={(e) => setInputValue(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && inputValue.trim())
-                  handleAnswer(step.id, inputValue.trim())
+                  handleAnswer(step.id, cleanName(inputValue.trim()))
               }}
               autoFocus
             />
             <button
               className="send-btn"
               disabled={!inputValue.trim()}
-              onClick={() => handleAnswer(step.id, inputValue.trim())}
+              onClick={() => handleAnswer(step.id, cleanName(inputValue.trim()))}
             >↑</button>
           </div>
         )}
