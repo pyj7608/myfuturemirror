@@ -75,6 +75,16 @@ export default function ChatScreen({ onComplete, onBack }) {
 
       const nextStep = STEPS[nextIdx]
 
+      // 이름 입력 후: 카테고리 질문 하드코딩 (API 불필요)
+      if (answerId === 'name') {
+        setIsTyping(true)
+        await delay(700)
+        setIsTyping(false)
+        addMessage(`반가워요, ${answerValue}님! 오늘은 어떤 분야의 성공 스토리를 들려주실 건가요? 분야에 딱 맞는 전문 기자를 연결해 드릴게요.`, 'ai')
+        setIsInputActive(true)
+        return
+      }
+
       setIsTyping(true)
       const result = await fetchReaction(answerId, answerValue, newData, nextStep)
       setIsTyping(false)
