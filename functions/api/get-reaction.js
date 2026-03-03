@@ -10,6 +10,10 @@ export async function onRequestPost(context) {
   const { stepId, answer, interviewData, nextStep } = await context.request.json()
 
   const name = interviewData?.name || answer || '고객'
+  const goalDate = interviewData?.goal_date || '미래'
+  const categoryMap = { A: '사업/경제(A)', B: 'IT/기술(B)', C: '취업/커리어(C)', D: '학업/개인성취(D)' }
+  const category = categoryMap[interviewData?.category] || interviewData?.category || '미정'
+
   const needsExample = nextStep && TEXTAREA_STEPS.has(nextStep.id)
 
   const contextLines = Object.entries(interviewData || {})
@@ -21,13 +25,17 @@ export async function onRequestPost(context) {
     ? `\n"example": 다음 질문에 대한 입력 예시. 지금까지 나온 인터뷰 맥락을 반드시 반영해서 구체적으로 작성. "예) "로 시작, 2~3줄, 실제 답변처럼 자연스럽게.`
     : `\n"example": ""`
 
-  const goalDate = interviewData?.goal_date || '미래'
+  // 가이드 안의 플레이스홀더를 실제 값으로 치환
+  const guide = (nextStep?.guide ?? '인터뷰를 마무리하세요.')
+    .replaceAll('{name}', name)
+    .replaceAll('{goal_date}', goalDate)
+    .replaceAll('{category}', category)
 
   const prompt = `당신은 친근하고 공감 능력이 뛰어난 AI 기자입니다.
 
 [인터뷰 배경]
-이 인터뷰는 사용자가 이미 꿈을 이룬 "${goalDate}" 시점에서 진행됩니다.
-AI 기자와 사용자 모두 그 미래 시점에 있습니다. 모든 질문은 "${goalDate}"을 현재로 표현해야 합니다.
+오늘은 ${goalDate}입니다. 사용자는 이미 꿈을 이룬 상태이며, 이 날이 인터뷰의 "현재"입니다.
+AI 기자와 사용자 모두 ${goalDate} 시점에 있습니다. 과거가 아닌 현재 시제로 이야기하세요.
 
 [지금까지 나온 인터뷰 정보]
 ${contextLines || '(없음)'}
@@ -36,7 +44,7 @@ ${contextLines || '(없음)'}
 ${answer}
 
 [다음에 해야 할 질문 지침]
-${nextStep?.guide ?? '인터뷰를 마무리하세요.'}
+${guide}
 
 아래 JSON 형식으로만 응답하세요:
 {
