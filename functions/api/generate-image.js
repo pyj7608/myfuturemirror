@@ -1,7 +1,12 @@
-const STYLE_PROMPTS = {
-  A: 'professional business executive, corporate office, formal suit, confident, cinematic lighting, newspaper style',
-  B: 'tech entrepreneur, modern workspace, laptop, creative studio, vibrant colors, magazine style',
-  C: 'inspiring successful person, warm natural lighting, joyful, lifestyle photography, soft bokeh',
+const STYLE_SUFFIXES = {
+  A: 'newspaper editorial style, cinematic lighting',
+  B: 'tech magazine style, vibrant colors',
+  C: 'lifestyle photography, warm soft lighting',
+}
+
+const VARIANT_SUFFIXES = {
+  header: 'portrait composition, high quality, photorealistic',
+  body: 'wide establishing shot, symbolic moment, high quality, photorealistic',
 }
 
 function arrayBufferToBase64(buffer) {
@@ -22,11 +27,11 @@ export async function onRequestPost(context) {
 
   const { prompt, template_type, variant = 'header' } = await context.request.json()
 
-  const style = STYLE_PROMPTS[template_type] ?? STYLE_PROMPTS.C
-  const variantSuffix = variant === 'body' ? ', wide establishing shot, dramatic moment, symbolic' : ''
+  const style = STYLE_SUFFIXES[template_type] ?? STYLE_SUFFIXES.C
+  const variantSuffix = VARIANT_SUFFIXES[variant] ?? VARIANT_SUFFIXES.header
   const finalPrompt = prompt
-    ? `${prompt}, ${style}${variantSuffix}, photorealistic, high quality`
-    : `Successful Korean professional. ${style}${variantSuffix}. Photorealistic.`
+    ? `${prompt}, ${style}, ${variantSuffix}`
+    : `successful professional, modern environment, confident, ${style}, ${variantSuffix}`
 
   try {
     const response = await AI.run('@cf/stabilityai/stable-diffusion-xl-base-1.0', {
