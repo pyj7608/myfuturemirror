@@ -9,15 +9,29 @@ function delay(ms) {
 }
 
 function cleanName(input) {
-  const suffixes = ['이라고 합니다', '라고 합니다', '입니다', '이에요', '예요', '이요', '이야', '야']
   let name = input.trim().replace(/[.!?~]+$/, '').trim()
+
+  // "이름은/이름이 X" 패턴 추출 (내/제 여부 무관)
+  const nameMatch = name.match(/이름(?:은|이|을)?\s*(.+)/)
+  if (nameMatch) {
+    name = nameMatch[1].trim()
+  } else {
+    // "저는/나는 X" 패턴 추출
+    const iaMatch = name.match(/(?:저|나)(?:는|은)\s*(.+)/)
+    if (iaMatch) name = iaMatch[1].trim()
+  }
+
+  // 문장 부호 및 어미 제거
+  name = name.replace(/[.!?~]+$/, '').trim()
+  const suffixes = ['이라고 합니다', '라고 합니다', '입니다', '이에요', '예요', '이요', '이야', '야']
   for (const suffix of suffixes) {
     if (name.endsWith(suffix) && name.length > suffix.length + 1) {
       name = name.slice(0, -suffix.length).trim()
       break
     }
   }
-  return name
+
+  return name || input.trim()
 }
 
 async function fetchReaction(stepId, answer, interviewData, nextStep) {
