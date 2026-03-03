@@ -11,6 +11,17 @@ export const STEPS = [
     placeholder: '이름 또는 닉네임을 입력하세요',
   },
   {
+    id: 'category',
+    inputType: 'category',
+    options: [
+      { label: '사업/경제', value: 'A', emoji: '💼' },
+      { label: 'IT/기술', value: 'B', emoji: '💻' },
+      { label: '취업/커리어', value: 'C', emoji: '🏢' },
+      { label: '학업/개인성취', value: 'D', emoji: '🎓' },
+    ],
+    guide: '어떤 분야의 성공 이야기인지 물어보세요. 사업/경제, IT/기술, 취업/커리어, 학업/개인성취 중 하나를 선택하게 됩니다. 분야에 맞춰 전문 기자를 배정해드린다고 안내하세요.',
+  },
+  {
     id: 'goal_date',
     inputType: 'date',
     guide: '꿈이나 목표를 이룬 날짜가 언제인지 자연스럽게 물어보세요.',

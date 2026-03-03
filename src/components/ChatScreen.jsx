@@ -217,6 +217,21 @@ export default function ChatScreen({ onComplete, onBack }) {
           </div>
         )}
 
+        {isInputActive && step.inputType === 'category' && (
+          <div className="category-zone">
+            {step.options.map((opt) => (
+              <button
+                key={opt.value}
+                className="btn-category"
+                onClick={() => handleAnswer(step.id, opt.value, `${opt.emoji} ${opt.label}`)}
+              >
+                <span className="cat-emoji">{opt.emoji}</span>
+                <span>{opt.label}</span>
+              </button>
+            ))}
+          </div>
+        )}
+
         {isInputActive && step.inputType === 'photo' && (
           <div className="photo-zone">
             {photoDataUrl && (

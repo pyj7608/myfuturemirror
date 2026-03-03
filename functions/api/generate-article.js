@@ -62,9 +62,10 @@ export async function onRequestPost(context) {
   }
 
   const data = await context.request.json()
-  const { name, goal_date, role_details, past_and_hardship, future_message, photo, photo_uploaded } = data
+  const { name, goal_date, role_details, past_and_hardship, future_message, photo, photo_uploaded, category } = data
 
-  const templateType = classifyTemplate(role_details, past_and_hardship)
+  // 사용자가 직접 선택한 카테고리를 우선 사용, 없으면 키워드 자동 분류
+  const templateType = category || classifyTemplate(role_details, past_and_hardship)
   const templateName = {
     A: '사업/경제 성공 스토리 — 정통 경제지 스타일. 성과 수치, 시장 영향력, 리더십을 강조하는 어휘 사용.',
     B: 'IT/기술 성공 스토리 — 트렌디 테크 잡지 스타일. 혁신성, 기술적 도전, 업계 변화를 강조하는 어휘 사용.',

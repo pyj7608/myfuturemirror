@@ -303,6 +303,34 @@ body {
 .send-btn:hover { transform: scale(1.08); }
 .send-btn:active { transform: scale(0.95); }
 .send-btn:disabled { opacity: 0.35; cursor: not-allowed; transform: none; }
+.category-zone {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.btn-category {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  background: var(--bg);
+  border: 2px solid var(--border);
+  border-radius: 14px;
+  padding: 16px 12px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  color: var(--text);
+  transition: border-color 0.2s, background 0.2s, color 0.2s;
+  font-family: inherit;
+}
+.btn-category:hover {
+  border-color: var(--primary);
+  background: var(--primary-light);
+  color: var(--primary);
+}
+.cat-emoji { font-size: 24px; }
+
 .date-row { display: flex; align-items: center; gap: 8px; }
 .date-row input[type="date"] {
   flex: 1;
