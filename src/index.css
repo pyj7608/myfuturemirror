@@ -331,19 +331,27 @@ body {
 }
 .cat-emoji { font-size: 24px; }
 
-.date-row { display: flex; align-items: center; gap: 8px; }
-.date-row input[type="date"] {
+.date-select-wrap { display: flex; flex-direction: column; gap: 10px; }
+.date-selects { display: flex; gap: 8px; }
+.date-select {
   flex: 1;
   border: 2px solid var(--border);
   border-radius: 14px;
-  padding: 12px 16px;
+  padding: 13px 8px;
   font-size: 15px;
-  outline: none;
+  font-family: inherit;
+  font-weight: 600;
   color: var(--text);
   background: var(--bg);
+  outline: none;
+  cursor: pointer;
+  text-align: center;
   transition: border-color 0.2s, background 0.2s;
+  appearance: none;
+  -webkit-appearance: none;
 }
-.date-row input[type="date"]:focus { border-color: var(--primary); background: var(--white); }
+.date-select:focus { border-color: var(--primary); background: var(--white); }
+.date-select:invalid, .date-select option[value=""] { color: var(--muted); }
 .photo-zone { display: flex; flex-direction: column; gap: 10px; }
 .photo-preview {
   width: 100%;

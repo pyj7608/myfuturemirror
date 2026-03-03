@@ -54,7 +54,9 @@ export default function ChatScreen({ onComplete, onBack }) {
   const [isInputActive, setIsInputActive] = useState(false)
   const [currentStep, setCurrentStep] = useState(0)
   const [inputValue, setInputValue] = useState('')
-  const [selectedDate, setSelectedDate] = useState('')
+  const [selYear, setSelYear] = useState('')
+  const [selMonth, setSelMonth] = useState('')
+  const [selDay, setSelDay] = useState('')
   const [photoDataUrl, setPhotoDataUrl] = useState(null)
   const [interviewData, setInterviewData] = useState({})
   const [currentExample, setCurrentExample] = useState('')
@@ -91,7 +93,9 @@ export default function ChatScreen({ onComplete, onBack }) {
       setInterviewData(newData)
       addMessage(displayText || answerValue, 'user')
       setInputValue('')
-      setSelectedDate('')
+      setSelYear('')
+      setSelMonth('')
+      setSelDay('')
       setCurrentExample('')
 
       const nextIdx = currentStep + 1
@@ -151,7 +155,15 @@ export default function ChatScreen({ onComplete, onBack }) {
 
   const step = STEPS[currentStep] ?? STEPS[STEPS.length - 1]
   const progress = Math.round((currentStep / STEPS.length) * 100)
-  const todayStr = new Date().toISOString().split('T')[0]
+
+  const currentYear = new Date().getFullYear()
+  const yearOptions = Array.from({ length: 31 }, (_, i) => currentYear + i)
+  const monthOptions = Array.from({ length: 12 }, (_, i) => i + 1)
+  const dayCount = selYear && selMonth ? new Date(Number(selYear), Number(selMonth), 0).getDate() : 31
+  const dayOptions = Array.from({ length: dayCount }, (_, i) => i + 1)
+  const builtDate = selYear && selMonth && selDay
+    ? `${selYear}-${String(selMonth).padStart(2, '0')}-${String(selDay).padStart(2, '0')}`
+    : ''
 
   return (
     <div className="chat-screen">
@@ -221,18 +233,40 @@ export default function ChatScreen({ onComplete, onBack }) {
         )}
 
         {isInputActive && step.inputType === 'date' && (
-          <div className="date-row">
-            <input
-              type="date"
-              value={selectedDate}
-              min={todayStr}
-              onChange={(e) => setSelectedDate(e.target.value)}
-            />
+          <div className="date-select-wrap">
+            <div className="date-selects">
+              <select
+                className="date-select"
+                value={selYear}
+                onChange={(e) => { setSelYear(e.target.value); setSelDay('') }}
+              >
+                <option value="">년도</option>
+                {yearOptions.map(y => <option key={y} value={y}>{y}년</option>)}
+              </select>
+              <select
+                className="date-select"
+                value={selMonth}
+                onChange={(e) => { setSelMonth(e.target.value); setSelDay('') }}
+              >
+                <option value="">월</option>
+                {monthOptions.map(m => <option key={m} value={m}>{m}월</option>)}
+              </select>
+              <select
+                className="date-select"
+                value={selDay}
+                onChange={(e) => setSelDay(e.target.value)}
+              >
+                <option value="">일</option>
+                {dayOptions.map(d => <option key={d} value={d}>{d}일</option>)}
+              </select>
+            </div>
             <button
-              className="send-btn"
-              disabled={!selectedDate}
-              onClick={() => selectedDate && handleAnswer(step.id, selectedDate, fmtDate(selectedDate))}
-            >↑</button>
+              className="btn-primary"
+              disabled={!builtDate}
+              onClick={() => builtDate && handleAnswer(step.id, builtDate, fmtDate(builtDate))}
+            >
+              이 날짜로 인터뷰하기 →
+            </button>
           </div>
         )}
 
