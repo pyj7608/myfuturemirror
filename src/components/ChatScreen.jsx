@@ -156,17 +156,17 @@ export default function ChatScreen({ onComplete, onBack }) {
   const step = STEPS[currentStep] ?? STEPS[STEPS.length - 1]
   const progress = Math.round((currentStep / STEPS.length) * 100)
 
-  const currentYear = new Date().getFullYear()
+  const today = new Date()
+  const currentYear = today.getFullYear()
+  const todayMonth = today.getMonth() + 1
+  const todayDay = today.getDate()
   const yearOptions = Array.from({ length: 31 }, (_, i) => currentYear + i)
   const monthOptions = Array.from({ length: 12 }, (_, i) => i + 1)
-  const dayCount = selYear && selMonth ? new Date(Number(selYear), Number(selMonth), 0).getDate() : 31
+  const resolvedMonth = Number(selMonth) || todayMonth
+  const dayCount = new Date(Number(selYear) || currentYear, resolvedMonth, 0).getDate()
   const dayOptions = Array.from({ length: dayCount }, (_, i) => i + 1)
-  const displayDate = selYear && selMonth && selDay
-    ? `${selYear}년 ${Number(selMonth)}월 ${Number(selDay)}일`
-    : selYear && selMonth
-    ? `${selYear}년 ${Number(selMonth)}월`
-    : selYear
-    ? `${selYear}년`
+  const displayDate = selYear
+    ? `${selYear}년 ${resolvedMonth}월 ${Number(selDay) || todayDay}일`
     : ''
 
   return (
