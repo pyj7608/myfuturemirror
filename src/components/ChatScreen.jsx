@@ -161,8 +161,12 @@ export default function ChatScreen({ onComplete, onBack }) {
   const monthOptions = Array.from({ length: 12 }, (_, i) => i + 1)
   const dayCount = selYear && selMonth ? new Date(Number(selYear), Number(selMonth), 0).getDate() : 31
   const dayOptions = Array.from({ length: dayCount }, (_, i) => i + 1)
-  const builtDate = selYear && selMonth && selDay
-    ? `${selYear}-${String(selMonth).padStart(2, '0')}-${String(selDay).padStart(2, '0')}`
+  const displayDate = selYear && selMonth && selDay
+    ? `${selYear}년 ${Number(selMonth)}월 ${Number(selDay)}일`
+    : selYear && selMonth
+    ? `${selYear}년 ${Number(selMonth)}월`
+    : selYear
+    ? `${selYear}년`
     : ''
 
   return (
@@ -262,8 +266,8 @@ export default function ChatScreen({ onComplete, onBack }) {
             </div>
             <button
               className="btn-primary"
-              disabled={!builtDate}
-              onClick={() => builtDate && handleAnswer(step.id, builtDate, fmtDate(builtDate))}
+              disabled={!selYear}
+              onClick={() => displayDate && handleAnswer(step.id, displayDate, displayDate)}
             >
               이 날짜로 인터뷰하기 →
             </button>
