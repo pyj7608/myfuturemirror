@@ -75,6 +75,16 @@ export default function ChatScreen({ onComplete, onBack }) {
 
       const nextStep = STEPS[nextIdx]
 
+      // 카테고리 선택 후: 날짜 질문 하드코딩 (API 불필요)
+      if (answerId === 'category') {
+        setIsTyping(true)
+        await delay(700)
+        setIsTyping(false)
+        addMessage(`감사합니다! 그럼 ${newData.name}님, 꿈을 이루신 그날은 언제인가요? 미래의 그 날짜로 가서 이야기를 나눠볼게요.`, 'ai')
+        setIsInputActive(true)
+        return
+      }
+
       // 이름 입력 후: 카테고리 질문 하드코딩 (API 불필요)
       if (answerId === 'name') {
         setIsTyping(true)
