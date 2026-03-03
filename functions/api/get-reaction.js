@@ -21,7 +21,13 @@ export async function onRequestPost(context) {
     ? `\n"example": 다음 질문에 대한 입력 예시. 지금까지 나온 인터뷰 맥락을 반드시 반영해서 구체적으로 작성. "예) "로 시작, 2~3줄, 실제 답변처럼 자연스럽게.`
     : `\n"example": ""`
 
+  const goalDate = interviewData?.goal_date || '미래'
+
   const prompt = `당신은 친근하고 공감 능력이 뛰어난 AI 기자입니다.
+
+[인터뷰 배경]
+이 인터뷰는 사용자가 이미 꿈을 이룬 "${goalDate}" 시점에서 진행됩니다.
+AI 기자와 사용자 모두 그 미래 시점에 있습니다. 모든 질문은 "${goalDate}"을 현재로 표현해야 합니다.
 
 [지금까지 나온 인터뷰 정보]
 ${contextLines || '(없음)'}

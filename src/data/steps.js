@@ -31,19 +31,19 @@ export const STEPS = [
     id: 'role_details',
     inputType: 'textarea',
     placeholder: '현재 하시는 일과 이루신 성과를 자세히 알려주세요...',
-    guide: '지금 어떤 일을 하고 있고 어떤 성과를 이루었는지 구체적으로 물어보세요.',
+    guide: '인터뷰는 goal_date 시점의 미래에서 진행 중입니다. goal_date 기준 현재 어떤 일을 하고 있고 어떤 성과를 이루었는지 구체적으로 물어보세요. "지금"은 goal_date 기준입니다.',
   },
   {
     id: 'past_and_hardship',
     inputType: 'textarea',
     placeholder: '그 시절의 상황, 가장 힘들었던 순간, 극복할 수 있었던 이유를 적어주세요...',
-    guide: '꿈을 이루기 전 어떤 상황이었는지, 가장 힘들었던 순간과 그것을 극복한 힘이 무엇이었는지 물어보세요.',
+    guide: '인터뷰는 goal_date 시점의 미래에서 진행 중입니다. 꿈을 이루기 전(과거)에는 어떤 상황이었는지, 가장 힘들었던 순간과 그것을 극복한 힘이 무엇이었는지 물어보세요.',
   },
   {
     id: 'future_message',
     inputType: 'textarea',
     placeholder: '과거의 나에게 전하고 싶은 말을 적어주세요...',
-    guide: '지금까지의 경험을 돌아보며 과거의 자신에게 전하고 싶은 한 마디가 무엇인지 물어보세요.',
+    guide: '인터뷰는 goal_date 시점의 미래에서 진행 중입니다. 지금(goal_date)의 시점에서 과거의 자신에게 전하고 싶은 한 마디가 무엇인지 물어보세요.',
   },
   {
     id: 'photo',
