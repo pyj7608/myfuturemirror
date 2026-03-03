@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { STEPS, fmtDate } from '../data/steps'
 
 const INITIAL_MESSAGE =
-  '안녕하세요! 저는 FutureMirror의 AI 기자입니다 ✨\n미래의 성공한 당신을 인터뷰하게 되어 정말 기쁩니다.\n먼저 이름이나 닉네임을 알려주실래요?'
+  '안녕하세요! 미래의 주인공을 기록하는 AI 기자입니다.\n오늘 인터뷰를 시작하기 전, 성함(혹은 닉네임)을 알려주시겠어요?'
 
 function delay(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms))
