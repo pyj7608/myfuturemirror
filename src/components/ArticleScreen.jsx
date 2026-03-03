@@ -7,7 +7,9 @@ function BodyImage({ src, className }) {
 }
 
 export default function ArticleScreen({ article, interviewData, onRestart }) {
-  const { template_type: type, title, subtitle, byline, paragraphs, headerImage, bodyImage } = article
+  const { template_type: rawType, title, subtitle, byline, paragraphs, headerImage, bodyImage } = article
+  // Type D는 Type C 비주얼 스타일 재사용
+  const type = rawType === 'D' ? 'C' : rawType
 
   const headerEl = headerImage ? (
     <img className={`${type.toLowerCase()}-photo`} src={headerImage} alt="기사 대표 사진" />

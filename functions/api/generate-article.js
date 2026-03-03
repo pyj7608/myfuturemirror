@@ -6,13 +6,19 @@ function fmtDate(str) {
 
 function classifyTemplate(roleDetails = '', hardship = '') {
   const text = (roleDetails + ' ' + hardship).toLowerCase()
-  const aWords = ['ceo', '창업', '글로벌', '투자', '매출', '기업', '대표', '상장', '펀딩', '사업', '회사']
-  const bWords = ['it', '게임', '개발', '플랫폼', '앱', '소프트웨어', 'ai', '혁신', '출시', '수상', '기술', '스타트업', '코딩', '프로그래밍']
-  const aScore = aWords.filter((w) => text.includes(w)).length
-  const bScore = bWords.filter((w) => text.includes(w)).length
-  if (aScore > bScore && aScore > 0) return 'A'
-  if (bScore > 0) return 'B'
-  return 'C'
+  const aWords = ['ceo', '창업', '글로벌', '투자', '매출', '기업', '대표', '상장', '펀딩', '사업', '회사', '경영', '수익', '브랜드', '마케팅', '영업', '무역', '부동산', '금융', '벤처']
+  const bWords = ['it', '게임', '개발', '플랫폼', '앱', '소프트웨어', 'ai', '혁신', '출시', '수상', '기술', '스타트업', '코딩', '프로그래밍', '디지털', '데이터', '클라우드', '서비스', '유튜브', '콘텐츠']
+  const cWords = ['취업', '취직', '입사', '직장', '승진', '이직', '커리어', '자격증', '면허', '공무원', '전문직', '의사', '변호사', '회계사', '간호사', '교사', '합격', '채용']
+  const dWords = ['입학', '대학', '대학원', '수능', '유학', '졸업', '장학금', '논문', '박사', '석사', '학교', '운동', '마라톤', '다이어트', '예술', '음악', '작가', '출판', '그림', '개인']
+  const scores = {
+    A: aWords.filter((w) => text.includes(w)).length,
+    B: bWords.filter((w) => text.includes(w)).length,
+    C: cWords.filter((w) => text.includes(w)).length,
+    D: dWords.filter((w) => text.includes(w)).length,
+  }
+  const max = Math.max(...Object.values(scores))
+  if (max === 0) return 'D'
+  return Object.keys(scores).find((k) => scores[k] === max) ?? 'D'
 }
 
 async function analyzePhoto(photo, apiKey) {
@@ -60,9 +66,10 @@ export async function onRequestPost(context) {
 
   const templateType = classifyTemplate(role_details, past_and_hardship)
   const templateName = {
-    A: '정통 경제지 스타일',
-    B: '트렌디 테크 잡지 스타일',
-    C: '소셜 카드뉴스 스타일',
+    A: '사업/경제 성공 스토리 — 정통 경제지 스타일. 성과 수치, 시장 영향력, 리더십을 강조하는 어휘 사용.',
+    B: 'IT/기술 성공 스토리 — 트렌디 테크 잡지 스타일. 혁신성, 기술적 도전, 업계 변화를 강조하는 어휘 사용.',
+    C: '취업/커리어 성공 스토리 — 커리어 매거진 스타일. 직업적 성장, 노력과 준비 과정, 전문성을 강조하는 어휘 사용.',
+    D: '학업/개인성취 스토리 — 라이프스타일 매거진 스타일. 개인의 꿈과 도전, 성장 과정, 감동적인 변화를 강조하는 어휘 사용.',
   }[templateType]
 
   // 사진이 있으면 vision으로 분석

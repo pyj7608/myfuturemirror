@@ -1,7 +1,8 @@
 const STYLE_SUFFIXES = {
-  A: 'newspaper editorial style, cinematic lighting',
-  B: 'tech magazine style, vibrant colors',
-  C: 'lifestyle photography, warm soft lighting',
+  A: 'newspaper editorial style, cinematic lighting, corporate atmosphere',
+  B: 'tech magazine style, vibrant colors, futuristic workspace',
+  C: 'career success, professional confidence, warm studio lighting',
+  D: 'personal achievement, joyful celebration, warm natural lighting, inspiring atmosphere',
 }
 
 const VARIANT_SUFFIXES = {
