@@ -19,7 +19,7 @@ export default function StartScreen({ onStart, error }) {
           </div>
           <div className="start-desc-item">
             <span>🎨</span>
-            <span>3가지 스타일 중 AI가 자동 선택</span>
+            <span>4가지 스타일 중 AI가 자동 선택</span>
           </div>
         </div>
 
