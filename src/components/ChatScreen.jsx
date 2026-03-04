@@ -238,6 +238,7 @@ export default function ChatScreen({ onComplete, onBack }) {
           <div className="row-input">
             <input
               type="text"
+              autoComplete="off"
               value={inputValue}
               placeholder={step.placeholder}
               onChange={(e) => setInputValue(e.target.value)}
