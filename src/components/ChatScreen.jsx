@@ -34,6 +34,19 @@ function cleanName(input) {
   return name || input.trim()
 }
 
+function truncatePlaceholder(text, maxLines = 3, maxChars = 22) {
+  if (!text) return text
+  const lines = text.split('\n')
+  const hasMoreLines = lines.length > maxLines
+  const trimmed = lines.slice(0, maxLines).map((line) =>
+    line.length > maxChars ? line.slice(0, maxChars) : line
+  )
+  const lastIdx = trimmed.length - 1
+  const needsDots = hasMoreLines || lines[lastIdx]?.length > maxChars
+  if (needsDots) trimmed[lastIdx] = trimmed[lastIdx] + '...'
+  return trimmed.join('\n')
+}
+
 async function fetchReaction(stepId, answer, interviewData, nextStep) {
   try {
     const res = await fetch('/api/get-reaction', {
@@ -278,7 +291,7 @@ export default function ChatScreen({ onComplete, onBack }) {
           <div className="col-input">
             <textarea
               value={inputValue}
-              placeholder={currentExample || step.placeholder}
+              placeholder={truncatePlaceholder(currentExample) || step.placeholder}
               rows={3}
               onChange={(e) => setInputValue(e.target.value)}
               onKeyDown={(e) => {
