@@ -92,6 +92,12 @@ export default function ChatScreen({ onComplete, onBack }) {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, isTyping])
 
+  useEffect(() => {
+    const handler = () => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    window.visualViewport?.addEventListener('resize', handler)
+    return () => window.visualViewport?.removeEventListener('resize', handler)
+  }, [])
+
   function addMessage(text, role) {
     setMessages((prev) => [...prev, { id: Date.now() + Math.random(), role, text }])
   }
