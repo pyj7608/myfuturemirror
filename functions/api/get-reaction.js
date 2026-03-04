@@ -31,6 +31,11 @@ export async function onRequestPost(context) {
     .replaceAll('{goal_date}', goalDate)
     .replaceAll('{category}', category)
 
+  const isDateStep = stepId === 'goal_date'
+  const messageInstruction = isDateStep
+    ? `${name}씨를 호칭하며, 추임새 없이 바로 위 지침에 따라 질문을 시작하세요. 1~2문장. 간결하게.`
+    : `${name}씨를 호칭하며, 방금 답변에 자연스럽게 공감·반응한 뒤 위 지침에 따라 다음 질문을 이어가는 메시지. 반응과 질문이 하나의 자연스러운 흐름으로 이어져야 함. 3~4문장. 과도한 칭찬 금지.`
+
   const prompt = `당신은 친근하고 공감 능력이 뛰어난 AI 기자입니다.
 
 [인터뷰 배경]
@@ -48,7 +53,7 @@ ${guide}
 
 아래 JSON 형식으로만 응답하세요:
 {
-  "message": "${name}씨를 호칭하며, 방금 답변에 자연스럽게 공감·반응한 뒤 위 지침에 따라 다음 질문을 이어가는 메시지. 반응과 질문이 하나의 자연스러운 흐름으로 이어져야 함. 3~4문장. 과도한 칭찬 금지.",${exampleInstruction}
+  "message": "${messageInstruction}",${exampleInstruction}
 }`
 
   const res = await fetch('https://api.openai.com/v1/chat/completions', {
