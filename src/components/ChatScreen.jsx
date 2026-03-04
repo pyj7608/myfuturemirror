@@ -278,7 +278,7 @@ export default function ChatScreen({ onComplete, onBack }) {
           <div className="col-input">
             <textarea
               value={inputValue}
-              placeholder={step.placeholder}
+              placeholder={currentExample || step.placeholder}
               rows={3}
               onChange={(e) => setInputValue(e.target.value)}
               onKeyDown={(e) => {
@@ -287,9 +287,6 @@ export default function ChatScreen({ onComplete, onBack }) {
               }}
               autoFocus
             />
-            {currentExample && (
-              <div className="input-example">{currentExample}</div>
-            )}
             <div className="input-footer">
               <span className="input-hint">Ctrl + Enter로 전송</span>
               <button

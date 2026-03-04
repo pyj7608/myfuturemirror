@@ -278,15 +278,10 @@ body {
   transition: border-color 0.2s, background 0.2s;
 }
 .col-input textarea:focus { border-color: var(--primary); background: var(--white); }
-.input-example {
-  font-size: 13px;
-  color: var(--muted);
-  background: var(--bg);
-  border-radius: 10px;
-  padding: 10px 14px;
-  line-height: 1.7;
-  white-space: pre-line;
-  border-left: 3px solid var(--primary-light);
+.col-input textarea::placeholder {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .input-footer { display: flex; justify-content: space-between; align-items: center; }
 .input-hint { font-size: 12px; color: var(--muted); }
