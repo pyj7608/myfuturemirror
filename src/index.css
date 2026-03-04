@@ -272,7 +272,7 @@ body {
   resize: none;
   outline: none;
   max-height: 140px;
-  overflow-y: auto;
+  overflow-y: hidden;
   background: var(--bg);
   line-height: 1.5;
   transition: border-color 0.2s, background 0.2s;
