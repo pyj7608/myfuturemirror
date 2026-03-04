@@ -288,26 +288,24 @@ export default function ChatScreen({ onComplete, onBack }) {
         )}
 
         {isInputActive && step.inputType === 'textarea' && (
-          <div className="col-input">
+          <div className="row-input">
             <textarea
+              className="auto-textarea"
               value={inputValue}
               placeholder={truncatePlaceholder(currentExample) || step.placeholder}
-              rows={3}
-              onChange={(e) => setInputValue(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && e.ctrlKey && inputValue.trim())
-                  handleAnswer(step.id, inputValue.trim())
+              rows={1}
+              onChange={(e) => {
+                setInputValue(e.target.value)
+                e.target.style.height = 'auto'
+                e.target.style.height = e.target.scrollHeight + 'px'
               }}
               autoFocus
             />
-            <div className="input-footer">
-              <span className="input-hint">Ctrl + Enter로 전송</span>
-              <button
-                className="send-btn"
-                disabled={!inputValue.trim()}
-                onClick={() => handleAnswer(step.id, inputValue.trim())}
-              >↑</button>
-            </div>
+            <button
+              className="send-btn"
+              disabled={!inputValue.trim()}
+              onClick={() => handleAnswer(step.id, inputValue.trim())}
+            >↑</button>
           </div>
         )}
 
