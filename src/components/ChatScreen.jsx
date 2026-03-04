@@ -236,15 +236,21 @@ export default function ChatScreen({ onComplete, onBack }) {
       <div className="input-zone">
         {isInputActive && step.inputType === 'text' && (
           <div className="row-input">
-            <input
-              type="text"
-              autoComplete="off"
+            <textarea
+              className="auto-textarea"
+              rows={1}
               value={inputValue}
               placeholder={step.placeholder}
-              onChange={(e) => setInputValue(e.target.value)}
+              onChange={(e) => {
+                setInputValue(e.target.value)
+                e.target.style.height = 'auto'
+                e.target.style.height = e.target.scrollHeight + 'px'
+              }}
               onKeyDown={(e) => {
-                if (e.key === 'Enter' && inputValue.trim())
+                if (e.key === 'Enter' && !e.shiftKey && inputValue.trim()) {
+                  e.preventDefault()
                   handleAnswer(step.id, cleanName(inputValue.trim()))
+                }
               }}
               autoFocus
             />
