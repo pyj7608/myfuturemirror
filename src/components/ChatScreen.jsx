@@ -249,7 +249,7 @@ export default function ChatScreen({ onComplete, onBack }) {
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && !e.shiftKey && inputValue.trim()) {
                   e.preventDefault()
-                  handleAnswer(step.id, cleanName(inputValue.trim()))
+                  handleAnswer(step.id, cleanName(inputValue.trim()), inputValue.trim())
                 }
               }}
               autoFocus
@@ -257,7 +257,7 @@ export default function ChatScreen({ onComplete, onBack }) {
             <button
               className="send-btn"
               disabled={!inputValue.trim()}
-              onClick={() => handleAnswer(step.id, cleanName(inputValue.trim()))}
+              onClick={() => handleAnswer(step.id, cleanName(inputValue.trim()), inputValue.trim())}
             >↑</button>
           </div>
         )}
