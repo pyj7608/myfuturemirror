@@ -100,6 +100,20 @@ export async function onRequestPost(context) {
     .replaceAll('{goal_date}', goalDate)
     .replaceAll('{category}', category)
 
+  // 이름 단계: Moderation API만 실행 (offtopic/too_short 기준 불필요)
+  if (stepId === 'name') {
+    const isFlagged = await moderateContent(answer, OPENAI_API_KEY)
+    if (isFlagged) {
+      return Response.json({
+        message: INVALID_MESSAGES.harmful,
+        example: '',
+        proceed: false,
+        reason: 'harmful',
+      })
+    }
+    return Response.json({ message: '', example: '', proceed: true, reason: 'normal' })
+  }
+
   // textarea 단계에서만 검증 수행
   if (TEXTAREA_STEPS.has(stepId)) {
     // ① Moderation API: 욕설·약물·폭력·혐오 등 안전 검사

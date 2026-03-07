@@ -137,14 +137,25 @@ export default function ChatScreen({ onComplete, onBack }) {
         return
       }
 
-      // 이름 입력 후: 카테고리 질문 하드코딩 (API 불필요)
+      // 이름 입력 후: Moderation API 검증 → 통과 시 카테고리 질문 하드코딩
       if (answerId === 'name') {
+        setIsTyping(true)
+        const lastAiQuestion = [...messages].reverse().find((m) => m.role === 'ai')?.text
+        const result = await fetchReaction(answerId, answerValue, newData, nextStep, lastAiQuestion)
+        setIsTyping(false)
+
+        if (result?.proceed === false) {
+          if (result.message) addMessage(result.message, 'ai')
+          const newRetry = retryCount + 1
+          setRetryCount(newRetry)
+          if (newRetry >= 3) setShowCancel(true)
+          setIsInputActive(true)
+          return
+        }
+
         setCurrentStep(nextIdx)
         setRetryCount(0)
         setShowCancel(false)
-        setIsTyping(true)
-        await delay(700)
-        setIsTyping(false)
         addMessage(`반가워요, ${answerValue}님! 오늘은 어떤 분야의 성공 스토리를 들려주실 건가요? 분야에 딱 맞는 전문 기자를 연결해 드릴게요.`, 'ai')
         setIsInputActive(true)
         return
