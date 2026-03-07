@@ -428,6 +428,8 @@ export default function ChatScreen({ onComplete, onBack }) {
             )}
           </div>
         )}
+      </div>
+
       {showCancel && (
         <button className="btn-cancel-interview" onClick={onBack}>
           인터뷰 취소
