@@ -1,5 +1,55 @@
 const TEXTAREA_STEPS = new Set(['role_details', 'past_and_hardship', 'future_message'])
 
+const INVALID_MESSAGES = {
+  offtopic:   '인터뷰 내용과 다른 이야기인 것 같아요. 다시 한번 말씀해 주시겠어요?',
+  profanity:  '인터뷰 기록에는 부적절한 표현이 포함될 수 없어요. 조금 정리해서 다시 말씀해 주세요.',
+  nonsense:   '답변을 이해하기 어려워요. 질문에 맞게 조금 더 자세히 입력해 주세요.',
+  too_short:  '조금 더 자세히 말씀해 주시겠어요?',
+}
+
+// ① 검증 전용 호출 (temperature 0.2 — 일관성 우선)
+async function validateAnswer(stepId, answer, guide, apiKey) {
+  const prompt = `당신은 인터뷰 답변 검증 시스템입니다. 아래 답변을 평가하세요.
+
+[인터뷰 단계]: ${stepId}
+[이 단계 질문 방향]: ${guide}
+[사용자 답변]: ${answer}
+
+평가 기준:
+1. 정상 답변 (질문과 관련된 내용): valid: true, reason: "normal"
+2. 이탈 답변 (질문과 전혀 무관한 내용): valid: false, reason: "offtopic"
+3. 욕설/비속어 (한국어·영어·변형어 포함): valid: false, reason: "profanity"
+4. 무의미한 입력 (랜덤 문자, 반복 문자 등): valid: false, reason: "nonsense"
+5. 지나치게 짧고 내용 없는 답변: valid: false, reason: "too_short"
+   단, future_message 단계는 짧은 답변도 valid: true 처리
+
+JSON으로만 응답하세요:
+{"valid": true 또는 false, "reason": "normal" | "offtopic" | "profanity" | "nonsense" | "too_short"}`
+
+  try {
+    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        messages: [{ role: 'user', content: prompt }],
+        temperature: 0.2,
+        max_tokens: 60,
+        response_format: { type: 'json_object' },
+      }),
+    })
+    if (!res.ok) return { valid: true, reason: 'normal' } // API 오류 시 통과 처리
+    const json = await res.json()
+    const result = JSON.parse(json.choices[0].message.content)
+    return { valid: result.valid ?? true, reason: result.reason || 'normal' }
+  } catch {
+    return { valid: true, reason: 'normal' } // 예외 시 통과 처리
+  }
+}
+
 export async function onRequestPost(context) {
   const { OPENAI_API_KEY } = context.env
 
@@ -15,7 +65,6 @@ export async function onRequestPost(context) {
   const category = categoryMap[interviewData?.category] || interviewData?.category || '미정'
 
   const needsExample = nextStep && TEXTAREA_STEPS.has(nextStep.id)
-  const isValidationStep = TEXTAREA_STEPS.has(stepId)
 
   const contextLines = Object.entries(interviewData || {})
     .filter(([k]) => k !== 'photo' && k !== 'photo_uploaded')
@@ -32,31 +81,24 @@ export async function onRequestPost(context) {
     .replaceAll('{goal_date}', goalDate)
     .replaceAll('{category}', category)
 
+  // ① textarea 단계에서만 검증 수행
+  if (TEXTAREA_STEPS.has(stepId)) {
+    const validation = await validateAnswer(stepId, answer, guide, OPENAI_API_KEY)
+    if (!validation.valid) {
+      return Response.json({
+        message: INVALID_MESSAGES[validation.reason] ?? INVALID_MESSAGES.nonsense,
+        example: '',
+        proceed: false,
+        reason: validation.reason,
+      })
+    }
+  }
+
+  // ② 검증 통과 → 반응 + 다음 질문 생성 (temperature 0.9)
   const isDateStep = stepId === 'goal_date'
   const messageInstruction = isDateStep
     ? `${name}님을 호칭하며, 추임새 없이 바로 위 지침에 따라 질문을 시작하세요. 1~2문장. 간결하게.`
     : `${name}님을 호칭하며, 방금 답변에 자연스럽게 공감·반응한 뒤 위 지침에 따라 다음 질문을 이어가는 메시지. 반응과 질문이 하나의 자연스러운 흐름으로 이어져야 함. 3~4문장. 과도한 칭찬 금지.`
-
-  // textarea 단계에서만 답변 품질 검증
-  const validationSection = isValidationStep ? `
-
-[사용자 답변 평가 규칙]
-답변을 아래 기준으로 먼저 평가한 뒤 proceed와 reason을 결정하세요.
-1. 정상 답변 (질문과 관련된 내용): proceed: true, reason: "normal"
-2. 이탈 답변 (질문과 무관, 예: "오늘 날씨 좋네요"): proceed: false, reason: "offtopic"
-3. 욕설/비속어 포함: proceed: false, reason: "profanity"
-4. 무의미한 입력 (예: "ㅁㄴㅇㄹ", "aaaaaaa", "ㅋㅋㅋㅋ"): proceed: false, reason: "nonsense"
-5. 지나치게 짧고 내용 없는 답변 (예: "몰라요", "글쎄요"): proceed: false, reason: "nonsense"
-   단, 현재 단계(${stepId})가 future_message이면 짧은 답변도 proceed: true로 처리하세요.
-
-proceed: false일 때 message 작성 규칙 (example은 "" 로 설정):
-- offtopic: 인터뷰 흐름과 맞지 않는 답변임을 부드럽게 안내하고, 원래 질문을 자연스럽게 다시 요청
-- profanity: "인터뷰 기록에는 부적절한 표현이 포함될 수 없어요. 조금 정리해서 다시 말씀해 주세요."
-- nonsense: "답변을 이해하기 어려워요. 질문에 맞게 조금 더 자세히 입력해 주세요."` : ''
-
-  const proceedFields = isValidationStep
-    ? `\n  "proceed": true 또는 false (위 평가 기준 적용),\n  "reason": "normal" | "offtopic" | "profanity" | "nonsense"`
-    : `\n  "proceed": true,\n  "reason": "normal"`
 
   const prompt = `당신은 친근하고 공감 능력이 뛰어난 AI 기자입니다.
 
@@ -71,11 +113,11 @@ ${contextLines || '(없음)'}
 ${answer}
 
 [다음에 해야 할 질문 지침]
-${guide}${validationSection}
+${guide}
 
 아래 JSON 형식으로만 응답하세요:
 {
-  "message": "${messageInstruction}",${exampleInstruction},${proceedFields}
+  "message": "${messageInstruction}",${exampleInstruction}
 }`
 
   const res = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -103,7 +145,7 @@ ${guide}${validationSection}
   return Response.json({
     message: result.message || '',
     example: result.example || '',
-    proceed: result.proceed ?? true,
-    reason: result.reason || 'normal',
+    proceed: true,
+    reason: 'normal',
   })
 }

@@ -56,12 +56,28 @@ function isNonsenseInput(text) {
 }
 
 const PROFANITY_LIST = [
-  '씨발', '시발', '병신', '개새끼', '지랄', '닥쳐', '미친놈',
-  '보지', '자지', '씹', '창녀', '느금마', 'tlqkf', 'ㅅㅂ', 'ㅂㅅ',
+  // 강한 욕설 및 변형
+  '씨발', '시발', '씨바', '시바', '씨블', '씨뻘', 'ㅆㅂ', 'ㅅㅂ', 'tlqkf',
+  '병신', 'ㅂㅅ', '븅신',
+  '개새끼', '개새기', '개색기', '쌍년', '쌍놈',
+  '지랄', 'ㅈㄹ', '닥쳐', '꺼져', '뒤져',
+  '보지', '자지', '씹', '창녀', '느금마', '니애미',
+  '미친놈', '미친년', '미친새끼',
+  // 경미한 비속어·모욕어
+  '바보', '멍청', '등신', '찐따', '돌아이',
+  // 영어 욕설
+  'fuck', 'shit', 'bitch', 'asshole', 'bastard',
 ]
 function hasProfanity(text) {
   const lower = text.toLowerCase()
   return PROFANITY_LIST.some((w) => lower.includes(w))
+}
+
+// textarea 최소 글자 수 체크
+function isTooShort(stepId, text) {
+  const len = text.trim().length
+  if (stepId === 'future_message') return len < 3
+  return len < 10 // role_details, past_and_hardship
 }
 
 async function fetchReaction(stepId, answer, interviewData, nextStep) {
@@ -155,6 +171,21 @@ export default function ChatScreen({ onComplete, onBack }) {
         await delay(600)
         setIsTyping(false)
         addMessage('인터뷰 기록에는 부적절한 표현이 포함될 수 없어요. 조금 정리해서 다시 말씀해 주세요.', 'ai')
+        setIsInputActive(true)
+        return
+      }
+
+      // Layer 1: 최소 글자 수 체크 (textarea 한정)
+      if (inputType === 'textarea' && isTooShort(answerId, answerValue)) {
+        addMessage(displayText || answerValue, 'user')
+        setInputValue('')
+        const newRetry = retryCount + 1
+        setRetryCount(newRetry)
+        if (newRetry >= 3) setShowCancel(true)
+        setIsTyping(true)
+        await delay(600)
+        setIsTyping(false)
+        addMessage('조금 더 자세히 말씀해 주시겠어요?', 'ai')
         setIsInputActive(true)
         return
       }
