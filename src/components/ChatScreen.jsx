@@ -80,12 +80,12 @@ function isTooShort(stepId, text) {
   return len < 10 // role_details, past_and_hardship
 }
 
-async function fetchReaction(stepId, answer, interviewData, nextStep) {
+async function fetchReaction(stepId, answer, interviewData, nextStep, lastAiQuestion) {
   try {
     const res = await fetch('/api/get-reaction', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ stepId, answer, interviewData, nextStep }),
+      body: JSON.stringify({ stepId, answer, interviewData, nextStep, lastAiQuestion }),
     })
     if (!res.ok) return null
     return await res.json()
@@ -231,7 +231,8 @@ export default function ChatScreen({ onComplete, onBack }) {
       }
 
       setIsTyping(true)
-      const result = await fetchReaction(answerId, answerValue, newData, nextStep)
+      const lastAiQuestion = [...messages].reverse().find((m) => m.role === 'ai')?.text
+      const result = await fetchReaction(answerId, answerValue, newData, nextStep, lastAiQuestion)
       setIsTyping(false)
 
       if (result?.message) {
