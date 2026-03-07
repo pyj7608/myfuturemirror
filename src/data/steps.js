@@ -30,7 +30,7 @@ export const STEPS = [
   {
     id: 'role_details',
     inputType: 'textarea',
-    placeholder: '현재 하시는 일과 이루신 성과를 자세히 알려주세요...',
+    placeholder: '서비스/사업 이름, 어떤 일을 하는지, 성과 수치(매출·팀 규모 등)를 구체적으로 알려주세요...',
     guide: `[작성 지침]
 1. 오늘은 {goal_date}입니다. 이 날이 인터뷰의 "현재"입니다.
 2. 질문 문장 안에 반드시 "{goal_date} 현재"라는 표현을 포함하세요.

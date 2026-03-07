@@ -47,12 +47,12 @@ function truncatePlaceholder(text, maxLines = 3, maxChars = 22) {
   return trimmed.join('\n')
 }
 
-async function fetchReaction(stepId, answer, interviewData, nextStep, lastAiQuestion) {
+async function fetchReaction(stepId, answer, interviewData, nextStep, lastAiQuestion, deepDiveCount = 0) {
   try {
     const res = await fetch('/api/get-reaction', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ stepId, answer, interviewData, nextStep, lastAiQuestion }),
+      body: JSON.stringify({ stepId, answer, interviewData, nextStep, lastAiQuestion, deepDiveCount }),
     })
     if (!res.ok) return null
     return await res.json()
@@ -75,6 +75,8 @@ export default function ChatScreen({ onComplete, onBack }) {
   const [currentExample, setCurrentExample] = useState('')
   const [retryCount, setRetryCount] = useState(0)
   const [showCancel, setShowCancel] = useState(false)
+  const [deepDiveCount, setDeepDiveCount] = useState({ role_details: 0, past_and_hardship: 0 })
+  const [isDeepDive, setIsDeepDive] = useState(false)
   const messagesEndRef = useRef(null)
   const hasInit = useRef(false)
   const isProcessing = useRef(false)
@@ -109,8 +111,13 @@ export default function ChatScreen({ onComplete, onBack }) {
     isProcessing.current = true
     setIsInputActive(false)
 
+    const DEEP_DIVE_STEP_IDS = new Set(['role_details', 'past_and_hardship'])
+
     try {
-      const newData = { ...interviewData, [answerId]: answerValue }
+      // Deep-Dive 중이면 기존 답변에 append, 아니면 새로 저장
+      const newData = isDeepDive && DEEP_DIVE_STEP_IDS.has(answerId)
+        ? { ...interviewData, [answerId]: (interviewData[answerId] || '') + '\n' + answerValue }
+        : { ...interviewData, [answerId]: answerValue }
       setInterviewData(newData)
       addMessage(displayText || answerValue, 'user')
       setInputValue('')
@@ -172,7 +179,8 @@ export default function ChatScreen({ onComplete, onBack }) {
 
       setIsTyping(true)
       const lastAiQuestion = [...messages].reverse().find((m) => m.role === 'ai')?.text
-      const result = await fetchReaction(answerId, answerValue, newData, nextStep, lastAiQuestion)
+      const currentDeepDiveCount = DEEP_DIVE_STEP_IDS.has(answerId) ? deepDiveCount[answerId] : 0
+      const result = await fetchReaction(answerId, answerValue, newData, nextStep, lastAiQuestion, currentDeepDiveCount)
       setIsTyping(false)
 
       if (result?.message) {
@@ -189,7 +197,17 @@ export default function ChatScreen({ onComplete, onBack }) {
         return
       }
 
+      // Deep-Dive 발동 → 현재 스텝 유지, 추가 답변 대기
+      if (result?.deep_dive === true) {
+        setDeepDiveCount(prev => ({ ...prev, [answerId]: (prev[answerId] || 0) + 1 }))
+        setIsDeepDive(true)
+        setCurrentExample(result?.example || '')
+        setIsInputActive(true)
+        return
+      }
+
       // 정상 진행
+      setIsDeepDive(false)
       setCurrentStep(nextIdx)
       setRetryCount(0)
       setShowCancel(false)
