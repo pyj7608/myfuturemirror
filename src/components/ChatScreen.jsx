@@ -47,12 +47,12 @@ function truncatePlaceholder(text, maxLines = 3, maxChars = 22) {
   return trimmed.join('\n')
 }
 
-async function fetchReaction(stepId, answer, interviewData, nextStep, lastAiQuestion, deepDiveCount = 0) {
+async function fetchReaction(stepId, answer, interviewData, nextStep, lastAiQuestion, deepDiveCount = 0, isDeepDive = false) {
   try {
     const res = await fetch('/api/get-reaction', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ stepId, answer, interviewData, nextStep, lastAiQuestion, deepDiveCount }),
+      body: JSON.stringify({ stepId, answer, interviewData, nextStep, lastAiQuestion, deepDiveCount, isDeepDive }),
     })
     if (!res.ok) return null
     return await res.json()
@@ -180,7 +180,7 @@ export default function ChatScreen({ onComplete, onBack }) {
       setIsTyping(true)
       const lastAiQuestion = [...messages].reverse().find((m) => m.role === 'ai')?.text
       const currentDeepDiveCount = DEEP_DIVE_STEP_IDS.has(answerId) ? deepDiveCount[answerId] : 0
-      const result = await fetchReaction(answerId, answerValue, newData, nextStep, lastAiQuestion, currentDeepDiveCount)
+      const result = await fetchReaction(answerId, answerValue, newData, nextStep, lastAiQuestion, currentDeepDiveCount, isDeepDive)
       setIsTyping(false)
 
       if (result?.message) {

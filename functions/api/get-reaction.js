@@ -9,11 +9,6 @@ const INVALID_MESSAGES = {
   too_short: '조금 더 자세히 말씀해 주시겠어요?',
 }
 
-const DEEP_DIVE_HINTS = {
-  role_details:      '서비스/사업/제품의 이름과 구체적 내용 (무엇을 하는지, 어떤 문제를 해결하는지, 차별점)',
-  past_and_hardship: '구체적인 사건·상황과 극복 과정·방법',
-}
-
 // OpenAI Moderation API — 욕설·약물·폭력·혐오 등 안전 검사 (무료, 다국어)
 async function moderateContent(answer, apiKey) {
   try {
@@ -30,40 +25,43 @@ async function moderateContent(answer, apiKey) {
   }
 }
 
-// 검증 + Deep-Dive 필요 여부 통합 판단 (temperature 0.2 — 1회 호출로 통합)
-async function validateAndCheckDeepDive(stepId, answer, lastAiQuestion, deepDiveCount, apiKey) {
+// 검증 + Intelligent Gate (Deep-Dive 판단) 통합 — temperature 0.2, 1회 호출
+// 하드코딩된 카테고리·언어별 규칙 없음. AI가 저널리스트 시각으로 정보 충만도를 자율 판단.
+async function validateAndCheckDeepDive(stepId, answer, lastAiQuestion, deepDiveCount, apiKey, name, category, goalDate, contextLines) {
   const canDeepDive = DEEP_DIVE_STEPS.has(stepId) && deepDiveCount < 2
 
   const deepDiveCriteria = canDeepDive
-    ? stepId === 'role_details'
-      ? `\n6. 기사 작성 가능 여부 (needs_deep_dive):
-   아래 두 조건이 모두 충족될 때만 false (추가 질문 불필요):
-   ① 서비스·사업·제품의 고유 명칭이 명확히 있음 ("웹서비스", "앱", "스타트업" 같은 일반 명사는 해당 안 됨)
-   ② 구체적 수치 성과 (매출·수익·사용자 수·팀 규모 등 숫자)가 하나 이상 있음
-   위 조건 중 하나라도 없으면 true`
-      : `\n6. 기사 작성 가능 여부 (needs_deep_dive):
-   당신은 베테랑 기사 작성 AI입니다. 이 답변으로 뉴스 기사의 "역경과 극복" 파트를 드라마틱하게 쓸 수 있습니까?
-   독자가 공감할 구체적 사건이나 장면이 하나라도 있으면 false.
-   아래 중 하나라도 해당하면 true:
-   - 감정·결과만 서술하고 구체적 사건·상황이 없음 (예: "많이 힘들었어요")
-   - 극복 과정이나 방법이 전혀 없어 스토리로 쓸 수 없음`
+    ? `\n6. Information density evaluation (needs_deep_dive + missing):
+   You are a veteran journalist evaluating whether this answer contains enough specific information to write a compelling news article.
+
+   Full interview context:
+   - Name: ${name}
+   - Category: ${category}
+   - Goal date: ${goalDate}
+   - Previous answers: ${contextLines || '(none)'}
+
+   Apply journalistic 5W1H standards. Abstract or vague expressions alone (e.g. "innovative service", "a lot of money", "many users") without concrete substance = insufficient.
+   If any key journalistic element is missing (What exactly it is, How it works, specific figures, concrete events), treat it as insufficient.
+
+   If sufficient  → needs_deep_dive: false, missing: ""
+   If insufficient → needs_deep_dive: true,  missing: "One sentence in the SAME LANGUAGE as the user's answer describing what specific information is missing for the article"`
     : ''
 
-  const prompt = `당신은 인터뷰 답변 검증 시스템입니다. 아래 답변을 평가하세요.
+  const prompt = `You are an interview answer validation system. Evaluate the answer below.
 
-[AI 기자가 한 질문]: ${lastAiQuestion ?? '(질문 정보 없음)'}
-[사용자 답변]: ${answer}
+[AI journalist's question]: ${lastAiQuestion ?? '(no question info)'}
+[User's answer]: ${answer}
 
-평가 기준:
-1. 정상 답변: valid: true, reason: "normal"
-2. 이탈 답변 (질문과 전혀 무관): valid: false, reason: "offtopic"
-3. 욕설/비속어: valid: false, reason: "profanity"
-4. 무의미한 입력 (랜덤 문자 등): valid: false, reason: "nonsense"
-5. 지나치게 짧고 내용 없는 답변: valid: false, reason: "too_short"
-   단, future_message 단계는 짧아도 valid: true${deepDiveCriteria}
+Evaluation criteria:
+1. Normal answer: valid: true, reason: "normal"
+2. Off-topic (completely unrelated to the question): valid: false, reason: "offtopic"
+3. Profanity/obscenity: valid: false, reason: "profanity"
+4. Meaningless input (random characters, etc.): valid: false, reason: "nonsense"
+5. Excessively short with no content: valid: false, reason: "too_short"
+   Exception: for the future_message step, short answers are always valid: true${deepDiveCriteria}
 
-JSON으로만 응답하세요:
-{"valid": true|false, "reason": "normal"|"offtopic"|"profanity"|"nonsense"|"too_short"${canDeepDive ? ', "needs_deep_dive": true|false' : ''}}`
+Respond ONLY in JSON:
+{"valid": true|false, "reason": "normal"|"offtopic"|"profanity"|"nonsense"|"too_short"${canDeepDive ? ', "needs_deep_dive": true|false, "missing": ""' : ''}}`
 
   try {
     const res = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -73,20 +71,21 @@ JSON으로만 응답하세요:
         model: 'gpt-4o-mini',
         messages: [{ role: 'user', content: prompt }],
         temperature: 0.2,
-        max_tokens: 80,
+        max_tokens: 150,
         response_format: { type: 'json_object' },
       }),
     })
-    if (!res.ok) return { valid: true, reason: 'normal', needs_deep_dive: false }
+    if (!res.ok) return { valid: true, reason: 'normal', needs_deep_dive: false, missing: '' }
     const json = await res.json()
     const result = JSON.parse(json.choices[0].message.content)
     return {
       valid: result.valid ?? true,
       reason: result.reason || 'normal',
       needs_deep_dive: canDeepDive ? (result.needs_deep_dive ?? false) : false,
+      missing: result.missing || '',
     }
   } catch {
-    return { valid: true, reason: 'normal', needs_deep_dive: false }
+    return { valid: true, reason: 'normal', needs_deep_dive: false, missing: '' }
   }
 }
 
@@ -97,7 +96,7 @@ export async function onRequestPost(context) {
     return Response.json({ error: 'OPENAI_API_KEY가 설정되지 않았습니다.' }, { status: 500 })
   }
 
-  const { stepId, answer, interviewData, nextStep, lastAiQuestion, deepDiveCount = 0 } = await context.request.json()
+  const { stepId, answer, interviewData, nextStep, lastAiQuestion, deepDiveCount = 0, isDeepDive = false } = await context.request.json()
 
   const name = interviewData?.name || answer || '고객'
   const goalDate = interviewData?.goal_date || '미래'
@@ -123,15 +122,16 @@ export async function onRequestPost(context) {
     return Response.json({ message: '', example: '', proceed: true, reason: 'normal', deep_dive: false })
   }
 
-  // ② textarea 단계: Moderation → validateAndCheckDeepDive (통합 1회 호출)
+  // ② textarea 단계: Moderation → Intelligent Gate (통합 1회 호출)
   let needsDeepDive = false
+  let missingInfo = ''
   if (TEXTAREA_STEPS.has(stepId)) {
     const isFlagged = await moderateContent(answer, OPENAI_API_KEY)
     if (isFlagged) {
       return Response.json({ message: INVALID_MESSAGES.harmful, example: '', proceed: false, reason: 'harmful', deep_dive: false })
     }
 
-    const validation = await validateAndCheckDeepDive(stepId, answer, lastAiQuestion, deepDiveCount, OPENAI_API_KEY)
+    const validation = await validateAndCheckDeepDive(stepId, answer, lastAiQuestion, deepDiveCount, OPENAI_API_KEY, name, category, goalDate, contextLines)
     if (!validation.valid) {
       return Response.json({
         message: INVALID_MESSAGES[validation.reason] ?? INVALID_MESSAGES.nonsense,
@@ -142,35 +142,35 @@ export async function onRequestPost(context) {
       })
     }
     needsDeepDive = validation.needs_deep_dive
+    missingInfo = validation.missing || ''
   }
 
   // ③ 반응 + 질문 생성 (temperature 0.9)
   const isDateStep = stepId === 'goal_date'
-  const deepDiveHint = DEEP_DIVE_HINTS[stepId] || ''
 
   // 예시 지침: deep-dive 중이면 현재 단계 보완 예시, 아니면 다음 단계 입력 예시
   const needsExample = !needsDeepDive && nextStep && TEXTAREA_STEPS.has(nextStep.id)
   const exampleInstruction = needsDeepDive
-    ? `\n"example": 방금 답변에서 부족한 정보(${deepDiveHint})를 보완한 입력 예시. "예) "로 시작, 2~3줄, 실제 답변처럼 자연스럽게.`
+    ? `\n"example": A concrete input example that fills in the missing information (${missingInfo}). Start with the same prefix as the user's language convention (e.g. "예) " for Korean). 2-3 lines, natural and realistic.`
     : needsExample
       ? nextStep.id === 'role_details'
         ? `\n"example": 다음 질문에 대한 입력 예시. 서비스/사업/제품 이름, 무엇을 하는지, 성과 수치(매출·팀 규모 등)를 반드시 포함해 구체적으로. "예) "로 시작, 2~3줄, 실제 답변처럼 자연스럽게.`
         : `\n"example": 다음 질문에 대한 입력 예시. 인터뷰 맥락을 반드시 반영해 구체적으로. "예) "로 시작, 2~3줄, 실제 답변처럼 자연스럽게.`
       : `\n"example": ""`
 
-  // 질문 가이드: deep-dive면 추가 정보 요청, 아니면 다음 단계 가이드
+  // 질문 가이드: Intelligent Gate 판단 결과(missingInfo)로 팔로업 구동, 아니면 다음 단계 가이드
   const questionGuide = needsDeepDive
-    ? `[팔로업 질문 지침 — 추가 정보 요청]
-현재 답변에서 기사 작성에 필요한 다음 정보가 부족합니다: ${deepDiveHint}
-이 정보를 자연스럽게 추가로 질문하세요.${deepDiveCount >= 1 ? '\n※ 이전 팔로업과 다른 각도로 질문하세요.' : ''}`
+    ? `[Follow-up question guide — request additional information]
+The following specific information is missing for the article: ${missingInfo}
+Ask naturally for this missing information. Use the SAME LANGUAGE as the user's answer.${deepDiveCount >= 1 ? '\n※ Ask from a completely different angle than the previous follow-up question.' : ''}`
     : `[다음에 해야 할 질문 지침]
 ${guide}`
 
   const messageInstruction = needsDeepDive
-    ? `${name}님을 호칭하며, 방금 답변 핵심을 한 문장으로 요약한 뒤, 부족한 정보를 자연스럽게 추가로 질문하세요. 2~3문장. 기자 톤. 칭찬·응원 금지.`
+    ? `Address ${name}, summarize the key point of the answer in one sentence, then naturally ask for the missing information. 2-3 sentences. Journalist tone. No praise or encouragement. Respond in the SAME LANGUAGE as the user's answer.`
     : isDateStep
       ? `${name}님을 호칭하며, 추임새 없이 바로 위 지침에 따라 질문을 시작하세요. 1~2문장. 간결하게.`
-      : `${name}님을 호칭하며 위 규칙에 따라 답변 핵심 요약 → 질문 구조로 작성하세요. 2~3문장.`
+      : `Address ${name}. Summarize the answer in one sentence → ask the next question. 2-3 sentences. Respond in the SAME LANGUAGE as the user's answer.`
 
   const prompt = `당신은 친근하지만 전문적인 인터뷰를 진행하는 AI 기자입니다.
 사용자의 미래 성공 스토리를 인터뷰하여 기사로 기록하는 역할입니다.
