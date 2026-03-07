@@ -153,9 +153,7 @@ export async function onRequestPost(context) {
   const exampleInstruction = needsDeepDive
     ? `\n"example": A concrete input example that fills in the missing information (${missingInfo}). Start with the same prefix as the user's language convention (e.g. "예) " for Korean). 2-3 lines, natural and realistic.`
     : needsExample
-      ? nextStep.id === 'role_details'
-        ? `\n"example": 다음 질문에 대한 입력 예시. 서비스/사업/제품 이름, 무엇을 하는지, 성과 수치(매출·팀 규모 등)를 반드시 포함해 구체적으로. "예) "로 시작, 2~3줄, 실제 답변처럼 자연스럽게.`
-        : `\n"example": 다음 질문에 대한 입력 예시. 인터뷰 맥락을 반드시 반영해 구체적으로. "예) "로 시작, 2~3줄, 실제 답변처럼 자연스럽게.`
+      ? `\n"example": A concrete input example for the next question based on the interview context and the next step's guide above. 2-3 lines, natural and realistic. Use the SAME LANGUAGE as the user's answer.`
       : `\n"example": ""`
 
   // 질문 가이드: Intelligent Gate 판단 결과(missingInfo)로 팔로업 구동, 아니면 다음 단계 가이드
