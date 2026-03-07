@@ -37,11 +37,10 @@ async function validateAndCheckDeepDive(stepId, answer, lastAiQuestion, deepDive
   const deepDiveCriteria = canDeepDive
     ? stepId === 'role_details'
       ? `\n6. 기사 작성 가능 여부 (needs_deep_dive):
-   당신은 베테랑 기사 작성 AI입니다. 이 답변으로 ${category} 분야 뉴스 기사의 "현재 성과" 파트를 쓸 수 있습니까?
-   헤드라인에 쓸 수 있는 구체적 키워드(서비스명, 기술명, 숫자 성과 등)가 하나라도 있으면 false.
-   아래 중 하나라도 해당하면 true:
-   - 서비스/사업/제품의 이름이나 구체적 내용(기능, 해결하는 문제)이 없음
-   - 헤드라인에 쓸 수 있는 구체적 키워드(숫자, 명칭, 기술)가 전혀 없음`
+   아래 두 조건이 모두 충족될 때만 false (추가 질문 불필요):
+   ① 서비스·사업·제품의 고유 명칭이 명확히 있음 ("웹서비스", "앱", "스타트업" 같은 일반 명사는 해당 안 됨)
+   ② 구체적 수치 성과 (매출·수익·사용자 수·팀 규모 등 숫자)가 하나 이상 있음
+   위 조건 중 하나라도 없으면 true`
       : `\n6. 기사 작성 가능 여부 (needs_deep_dive):
    당신은 베테랑 기사 작성 AI입니다. 이 답변으로 뉴스 기사의 "역경과 극복" 파트를 드라마틱하게 쓸 수 있습니까?
    독자가 공감할 구체적 사건이나 장면이 하나라도 있으면 false.
@@ -229,6 +228,13 @@ ${messageInstruction}
 
   const json = await res.json()
   const result = JSON.parse(json.choices[0].message.content)
+
+  // 메시지가 비어 있으면 fallback 생성 (GPT가 빈 문자열을 반환한 경우 대비)
+  if (!result.message) {
+    result.message = needsDeepDive
+      ? `${name}님, 조금 더 구체적으로 말씀해 주시겠어요?`
+      : `${name}님, 감사합니다. 이어서 다음 질문 드리겠습니다.`
+  }
 
   return Response.json({
     message: result.message || '',
