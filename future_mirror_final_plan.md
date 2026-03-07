@@ -1,6 +1,6 @@
 # FutureMirror 최종 기획서 (현행 기준)
 
-> 최종 업데이트: 2026-03-07 (Deep-Dive 기능 추가)
+> 최종 업데이트: 2026-03-07 (Intelligent Gate 설계 반영)
 
 ---
 
@@ -20,27 +20,28 @@
 | 프론트엔드 | React + Vite |
 | 배포 | Cloudflare Pages |
 | 백엔드 API | Cloudflare Pages Functions |
-| 답변 검증 (안전) | OpenAI Moderation API (`omni-moderation-latest`, 무료) |
-| 답변 검증 (의미) | OpenAI GPT-4o-mini (temperature 0.2) |
-| 인터뷰 반응 생성 | OpenAI GPT-4o-mini (temperature 0.9) |
+| 답변 안전 검사 | OpenAI Moderation API (`omni-moderation-latest`, 무료) |
+| 인터뷰 AI (통합) | OpenAI GPT-4o-mini (temperature 0.8) |
 | 기사 생성 | OpenAI GPT-4o-mini (temperature 0.85) |
 | 사진 분석 | OpenAI GPT-4o-mini (vision) |
 | AI 이미지 생성 | Cloudflare Workers AI (Stable Diffusion XL Base 1.0) |
+
+> **변경 이력**: 기존 "답변 검증(의미, temperature 0.2) + 반응 생성(temperature 0.9)" 2회 분리 호출 → `runInterviewAI` 단일 호출(temperature 0.8)로 통합. 유효성 판단·Deep-Dive·메시지 생성·예시 생성을 AI가 자율 수행.
 
 ---
 
 ## 3. 인터뷰 UX 흐름 (SNS 채팅형)
 
-총 7단계. 처음 3개 질문은 하드코딩, 4번부터는 AI가 동적 생성 (`get-reaction` API).
+총 7단계. Step 1~3은 프론트엔드 하드코딩, Step 4부터는 인터뷰 AI가 동적 생성 (`get-reaction` API).
 
 ### Step 1: 이름 입력
-- **입력 UI**: auto-resize 텍스트에어리어 (브라우저 자동완성 툴바 억제)
+- **입력 UI**: auto-resize 텍스트에어리어
 - **AI 기자 (하드코딩)**: "안녕하세요! 미래의 주인공을 기록하는 AI 기자입니다. 오늘 인터뷰를 시작하기 전, 성함(혹은 닉네임)을 알려주시겠어요?"
 - **저장 변수**: `{name}`
 - **특이사항**:
   - `cleanName()` 함수로 한국어 경어 어미 자동 제거 (예: "홍길동 입니다" → "홍길동")
   - 답변 제출 시 `get-reaction` API 호출 → **Moderation API** 안전 검사 실행
-  - 유해 콘텐츠 포함 시 `proceed: false` 반환 → 재입력 요청 (최대 3회 후 인터뷰 취소 버튼 표시)
+  - 유해 콘텐츠 포함 시 AI가 사용자 언어로 재입력 요청 메시지 생성 (최대 3회 후 인터뷰 취소 버튼 표시)
 
 ### Step 2: 카테고리 선택
 - **입력 UI**: 버튼형 2×2 그리드 (이모지 + 레이블)
@@ -68,20 +69,19 @@
 ### Step 4: 현재 상태 및 성과
 - **입력 UI**: 멀티라인 텍스트에어리어
 - **placeholder**: "서비스/사업 이름, 어떤 일을 하는지, 성과 수치(매출·팀 규모 등)를 구체적으로 알려주세요..."
-- **AI 기자 (동적 생성)**: `{goal_date} 현재`라는 표현을 질문에 반드시 포함. 카테고리별 질문 가이드:
-  - A(사업/경제): "{goal_date} 현재 어떤 사업을 이끌고 계신가요? 매출, 팀 규모, 시장 영향력 등 구체적인 성과를 알려주세요."
-  - B(IT/기술): "{goal_date} 현재 어떤 서비스나 기술을 만들고 계신가요? 출시한 제품이나 이룬 기술적 성과를 구체적으로 말씀해 주세요."
-  - C(취업/커리어): "{goal_date} 현재 어떤 직무나 포지션에서 일하고 계신가요? 현재 역할과 이루신 성과를 자세히 알려주세요."
-  - D(학업/개인성취): "{goal_date} 현재 어떤 목표를 달성하셨나요? 지금 어떤 위치에 계신지, 이루신 것들을 구체적으로 말씀해 주세요."
-- **저장 변수**: `{role_details}` (Deep-Dive 추가 답변은 append)
+- **AI 기자 (동적 생성)**: `{goal_date}`를 현재로, 카테고리 맥락에 맞게 AI가 자율 생성. 고정 템플릿 없음.
+- **저장 변수**: `{role_details}` (Deep-Dive 추가 답변은 `\n` append)
 - **특이사항**:
-  - goal_date 답변 직후이므로 추임새 없이 바로 질문 시작 (1~2문장)
-  - **Deep-Dive 적용** (최대 2회): 헤드라인에 쓸 수 있는 키워드(서비스명·기술명·숫자)가 없으면 추가 질문 발동
+  - **Deep-Dive 적용** (최대 2회): Intelligent Gate가 헤드라인 작성 가능 여부를 판단
+    - ① 서비스·성취의 고유 명칭 또는 구체적 설명 (카테고리 라벨+형용사만으로는 불충분)
+    - ② 구체적 수치 성과 (매출, 사용자 수, 팀 규모 등)
+    - ③ 스토리 주체가 명확한지
+    - 위 세 조건 중 하나라도 없으면 Deep-Dive 발동
 
 ### Step 5: 과거 상황 / 힘든 순간 / 극복한 힘 (통합)
 - **입력 UI**: 멀티라인 텍스트에어리어
 - **AI 기자 (동적 생성)**: 꿈을 이루기 전(과거) 상황, 가장 힘들었던 순간, 극복한 힘을 한 번에 물어봄
-- **저장 변수**: `{past_and_hardship}` (Deep-Dive 추가 답변은 append)
+- **저장 변수**: `{past_and_hardship}` (Deep-Dive 추가 답변은 `\n` append)
 - **특이사항**: **Deep-Dive 적용** (최대 2회): 독자가 공감할 구체적 사건·장면이 없으면 추가 질문 발동
 
 ### Step 6: 과거 자신에게 한 마디
@@ -101,7 +101,25 @@
 
 **엔드포인트**: `POST /api/get-reaction`
 
-### 4.1 요청 파라미터
+### 4.1 설계 철학 — Intelligent Gate
+
+하드코딩된 판단 규칙 없이, AI가 저널리스트 시각으로 모든 것을 자율 판단한다.
+
+```
+사용자 답변 제출
+       ↓
+[Moderation API] — 안전 검사 (무료, 다국어)
+       ↓
+[runInterviewAI — 단일 AI 호출]
+  ① 유효성 판단 (offtopic / profanity / nonsense / too_short)
+  ② Intelligent Gate: "이 답변으로 좋은 기사를 쓸 수 있는가?" (Step 4, 5만)
+  ③ 메시지 + 예시 생성
+  → 사용자 답변과 동일한 언어로 응답
+```
+
+카테고리·언어에 무관하게 동작 → 글로벌 확장 대응 설계
+
+### 4.2 요청 파라미터
 
 | 파라미터 | 타입 | 설명 |
 |----------|------|------|
@@ -111,53 +129,59 @@
 | `nextStep` | object | 다음 단계 정보 (guide 포함) |
 | `lastAiQuestion` | string | 직전 AI 질문 텍스트 (검증 컨텍스트용) |
 | `deepDiveCount` | number | 현재 단계에서 Deep-Dive 발동 횟수 (0~2, 기본값 0) |
+| `isDeepDive` | boolean | 현재 요청이 Deep-Dive 추가 답변인지 여부 |
 
-### 4.2 처리 흐름 (3단계)
+### 4.3 처리 흐름 (2단계)
 
 ```
 ① Moderation API (name 단계 + 모든 textarea 단계)
    욕설·약물·폭력·혐오 등 안전 검사
-   → flagged 시: proceed: false, reason: "harmful", deep_dive: false
+   → flagged 시: runInterviewAI에 isFlagged: true 전달 → AI가 언어 맞춤 거절 메시지 생성
 
-② validateAndCheckDeepDive (textarea 단계만, temperature 0.2 — 1회 통합 호출)
-   lastAiQuestion을 컨텍스트로 사용
-   [답변 유효성]
+② runInterviewAI (name 제외 모든 단계, temperature 0.8)
+   [Task 1] 유효성 판단
    - offtopic: 질문과 전혀 무관한 답변
    - profanity: 욕설/비속어
    - nonsense: 무의미한 입력
    - too_short: 지나치게 짧은 답변 (future_message 단계 제외)
-   → 검증 실패 시: proceed: false, deep_dive: false
-   [Deep-Dive 판단 — Step 4, 5 && deepDiveCount < 2]
-   판단 기준: "이 답변으로 좋은 기사를 쓸 수 있는가?" (기사 작성 전문가 시각)
-   - Step 4: 헤드라인에 쓸 수 있는 키워드(서비스명·기술명·숫자 성과)가 없으면 needs_deep_dive: true
-   - Step 5: 독자가 공감할 구체적 사건·장면이 없으면 needs_deep_dive: true
-   → needs_deep_dive: true 시: proceed: true, deep_dive: true
+   → 검증 실패 시: valid: false, AI가 사용자 언어로 재입력 요청 메시지 생성
 
-③ 반응 생성 (temperature 0.9)
-   검증 통과 + Deep-Dive 미발동 시 AI 기자 메시지 생성
-   → proceed: true, deep_dive: false
+   [Task 2] Intelligent Gate — Step 4, 5 && deepDiveCount < 2
+   판단 기준: 헤드라인 작성 가능 여부 (5W1H 저널리즘 기준)
+   - ① 서비스·성취의 고유 명칭 또는 구체적 설명 (카테고리 라벨+형용사 조합은 불충분)
+   - ② 구체적 수치 성과
+   - ③ 스토리 주체가 명확한지
+   → 하나라도 없으면: deep_dive: true, AI가 missing 정보 타겟 팔로업 질문 생성
+   → Deep-Dive 2회차: 1회차와 다른 각도로 질문
+
+   [Task 3] 메시지 생성
+   - deep_dive: true → missing 정보만 타겟 팔로업 (다음 단계 가이드 사용 금지)
+   - deep_dive: false → 다음 단계 가이드 기반 다음 질문
+   - 사용자 답변과 동일한 언어로 응답
+
+   [Task 4] 예시 생성
+   - deep_dive: true → missing 정보를 보완한 입력 예시
+   - deep_dive: false → 다음 질문에 대한 입력 예시
 ```
 
-### 4.3 Deep-Dive 동작 규칙
+### 4.4 name 단계 처리
 
-| 항목 | 내용 |
-|------|------|
-| 적용 단계 | Step 4 (`role_details`), Step 5 (`past_and_hardship`) |
-| 최대 발동 | 각 단계별 2회 |
-| 추가 답변 저장 | 기존 변수에 `\n` 구분으로 append |
-| 2회차 질문 | 1회차와 다른 각도로 질문 (중복 금지) |
-| 프론트 상태 | `deepDiveCount: { role_details: 0, past_and_hardship: 0 }`, `isDeepDive: boolean` |
+```
+Moderation → flagged 아니면 proceed: true, message: '' 반환
+(카테고리 질문은 프론트엔드 하드코딩으로 처리)
+flagged 시 → runInterviewAI로 거절 메시지 생성
+```
 
-### 4.4 AI 기자 말투 규칙 (반응 생성 프롬프트)
+### 4.5 AI 기자 말투 규칙
 
 - **톤**: 친근하지만 전문적인 인터뷰 기자
 - **구조**: 답변 핵심 요약 → 다음 질문 (2~3문장)
 - **금지**: 과도한 칭찬(멋집니다, 대단합니다), 응원·격려·동기부여 톤
 - **시제**: `{goal_date}`를 현재로, `{goal_date}` 이후 암시 표현("앞으로" 등) 금지
-- **예외 — Step 4 진입 시**: 추임새 없이 바로 질문 시작 (1~2문장)
-- **Deep-Dive 시**: 답변 핵심 한 문장 요약 → 부족한 정보 추가 요청 (2~3문장)
+- **언어**: 사용자 답변과 동일한 언어로 자동 응답 (한국어 입력 → 한국어, English input → English)
+- **Deep-Dive 시**: missing 정보만 타겟 팔로업. 다음 단계 내용 혼입 금지.
 
-### 4.5 응답 형식
+### 4.6 응답 형식
 
 ```json
 {
@@ -172,7 +196,7 @@
 검증 실패 시:
 ```json
 {
-  "message": "재입력 안내 메시지",
+  "message": "재입력 안내 메시지 (사용자 언어로 AI 생성)",
   "example": "",
   "proceed": false,
   "reason": "harmful" | "offtopic" | "profanity" | "nonsense" | "too_short",
@@ -191,7 +215,17 @@ Deep-Dive 발동 시:
 }
 ```
 
-### 4.6 재시도 / 취소 정책
+### 4.7 Deep-Dive 동작 규칙
+
+| 항목 | 내용 |
+|------|------|
+| 적용 단계 | Step 4 (`role_details`), Step 5 (`past_and_hardship`) |
+| 최대 발동 | 각 단계별 2회 |
+| 추가 답변 저장 | 기존 변수에 `\n` 구분으로 append |
+| 2회차 질문 | 1회차와 다른 각도로 질문 (중복 금지) |
+| 프론트 상태 | `deepDiveCount: { role_details: 0, past_and_hardship: 0 }`, `isDeepDive: boolean` |
+
+### 4.8 재시도 / 취소 정책
 
 - `proceed: false` 수신 시 현재 단계 유지, `retryCount` 증가
 - 3회 연속 실패 시 **"인터뷰 취소"** 버튼 표시 (`onBack()` 호출)
@@ -269,13 +303,13 @@ Deep-Dive 발동 시:
 1. **인터뷰 시제 프레이밍**: AI 기자와 사용자 모두 `{goal_date}` 시점에 있음. 과거가 아닌 현재 시제로 진행
 2. **SNS 채팅형 레이아웃**: 말풍선 + 타이핑 애니메이션 (점 3개)
 3. **AI 반응 + 질문 통합**: 답변 핵심 요약 → 다음 질문을 하나의 메시지로 (칭찬·감탄 없는 기자 톤)
-4. **카테고리별 맞춤 기자 페르소나**: Step 3에서 담당 부서 소개 (경제부/IT부/커리어부/문화부), Step 4부터 카테고리별 질문 관점 차별화
+4. **카테고리별 맞춤 기자 페르소나**: Step 3에서 담당 부서 소개 (경제부/IT부/커리어부/문화부), Step 4부터 AI가 카테고리 맥락에 맞게 자율 질문
 5. **스마트 이름 파싱**: "저는 홍길동 입니다" → "홍길동" 자동 추출
 6. **유연한 날짜 입력**: 년도 필수, 월/일 미선택 시 오늘 날짜 자동 적용
-7. **입력 예시 제공**: textarea 단계에서 맥락 반영한 구체적 입력 예시 표시
-8. **2단계 답변 검증**: Moderation API(안전) + GPT-4o-mini(의미+Deep-Dive) 1회 통합 호출. 3회 실패 시 인터뷰 취소 버튼
-9. **Deep-Dive 추가 질문**: Step 4/5에서 기사 품질 부족 판단 시 최대 2회 팔로업 질문. 추가 답변은 기존 변수에 append
-10. **기사 작성 자동화**: 4종 템플릿 자동 분류 + AI 이미지 생성
+7. **입력 예시 제공**: textarea 단계에서 맥락 반영한 구체적 입력 예시 표시 (AI 생성, 사용자 언어 자동 매칭)
+8. **단일 AI 판단**: Moderation API(안전) + runInterviewAI(유효성·Deep-Dive·메시지 통합). 3회 실패 시 인터뷰 취소 버튼
+9. **Intelligent Gate (Deep-Dive)**: Step 4/5에서 기사 품질 부족 판단 시 최대 2회 팔로업 질문. 하드코딩 규칙 없이 AI가 5W1H 저널리즘 기준으로 자율 판단. 추가 답변은 기존 변수에 append
+10. **글로벌 확장 대응**: 인터뷰 AI가 사용자 답변 언어를 감지해 동일 언어로 응답. 카테고리·언어에 무관하게 동작
 
 ---
 
@@ -283,7 +317,7 @@ Deep-Dive 발동 시:
 
 | 엔드포인트 | 역할 | 사용 모델 |
 |-----------|------|-----------|
-| `POST /api/get-reaction` | 답변 검증 + 인터뷰 AI 반응 + 다음 질문 생성 | Moderation API + GPT-4o-mini |
+| `POST /api/get-reaction` | 답변 검증 + Intelligent Gate + 인터뷰 AI 메시지 생성 | Moderation API + GPT-4o-mini |
 | `POST /api/generate-article` | 기사 전문 생성 | GPT-4o-mini |
 | `POST /api/generate-image` | AI 이미지 생성 | Stable Diffusion XL |
 
@@ -305,8 +339,8 @@ Deep-Dive 발동 시:
 | `name` | Step 1 | 이름/닉네임 |
 | `category` | Step 2 | 카테고리 (A/B/C/D) |
 | `goal_date` | Step 3 | 목표 달성 날짜 (한국어 형식) |
-| `role_details` | Step 4 | 현재 상태 및 성과 |
-| `past_and_hardship` | Step 5 | 과거 상황 + 힘든 순간 + 극복한 힘 (통합) |
+| `role_details` | Step 4 | 현재 상태 및 성과 (Deep-Dive 답변 append 포함) |
+| `past_and_hardship` | Step 5 | 과거 상황 + 힘든 순간 + 극복한 힘 (Deep-Dive 답변 append 포함) |
 | `future_message` | Step 6 | 과거 자신에게 한 마디 |
 | `photo_uploaded` | Step 7 | 사진 업로드 여부 (boolean) |
 | `photo` | Step 7 | 사진 dataURL (업로드 시) |
