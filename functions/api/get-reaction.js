@@ -95,12 +95,12 @@ deep_dive: false (not applicable for this step)
 ${isFlagged
   ? 'Generate rejection message only.'
   : canDeepDive
-    ? 'If valid + deep_dive: false → ask next question per guide below.\nIf valid + deep_dive: true → ask targeted follow-up.\nIf invalid → ask to re-answer.'
+    ? 'If valid + deep_dive: true → ask ONLY a targeted follow-up about the missing information from Task 2. Do NOT ask about anything else. Do NOT use the next step guide below.\nIf valid + deep_dive: false → ask next question per guide below.\nIf invalid → ask to re-answer.'
     : 'If valid → ask next question per guide below.\nIf invalid → ask to re-answer.'}
 ${isDateStep ? 'For this step: start directly with the question, no preamble. 1-2 sentences.' : 'Summarize the answer in one sentence → ask the question. 2-3 sentences.'}
 No excessive praise or encouragement. Real journalist tone. Respond in the SAME LANGUAGE as the user's answer.
 
-[Next step guide]: ${guide}
+[Next step guide — use ONLY when deep_dive: false]: ${guide}
 
 ## Task 4 — Example
 ${canDeepDive
