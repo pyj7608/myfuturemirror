@@ -91,7 +91,7 @@ export default function ChatScreen({ onComplete, onBack }) {
   const [interviewData, setInterviewData] = useState({})
   const [currentExample, setCurrentExample] = useState('')
   const [retryCount, setRetryCount] = useState(0)
-  const [showSkip, setShowSkip] = useState(false)
+  const [showCancel, setShowCancel] = useState(false)
   const messagesEndRef = useRef(null)
   const hasInit = useRef(false)
   const isProcessing = useRef(false)
@@ -129,13 +129,13 @@ export default function ChatScreen({ onComplete, onBack }) {
     try {
       const inputType = STEPS[currentStep]?.inputType
 
-      // Layer 1: 무의미 입력 차단 (textarea 한정)
-      if (inputType === 'textarea' && isNonsenseInput(answerValue)) {
+      // Layer 1: 무의미 입력 차단 (text + textarea)
+      if ((inputType === 'text' || inputType === 'textarea') && isNonsenseInput(answerValue)) {
         addMessage(displayText || answerValue, 'user')
         setInputValue('')
         const newRetry = retryCount + 1
         setRetryCount(newRetry)
-        if (newRetry >= 3) setShowSkip(true)
+        if (newRetry >= 3) setShowCancel(true)
         setIsTyping(true)
         await delay(600)
         setIsTyping(false)
@@ -150,7 +150,7 @@ export default function ChatScreen({ onComplete, onBack }) {
         setInputValue('')
         const newRetry = retryCount + 1
         setRetryCount(newRetry)
-        if (newRetry >= 3 && inputType === 'textarea') setShowSkip(true)
+        if (newRetry >= 3) setShowCancel(true)
         setIsTyping(true)
         await delay(600)
         setIsTyping(false)
@@ -177,7 +177,7 @@ export default function ChatScreen({ onComplete, onBack }) {
       if (answerId === 'category') {
         setCurrentStep(nextIdx)
         setRetryCount(0)
-        setShowSkip(false)
+        setShowCancel(false)
         setIsTyping(true)
         await delay(700)
         setIsTyping(false)
@@ -190,7 +190,7 @@ export default function ChatScreen({ onComplete, onBack }) {
       if (answerId === 'name') {
         setCurrentStep(nextIdx)
         setRetryCount(0)
-        setShowSkip(false)
+        setShowCancel(false)
         setIsTyping(true)
         await delay(700)
         setIsTyping(false)
@@ -211,7 +211,7 @@ export default function ChatScreen({ onComplete, onBack }) {
       if (result?.proceed === false) {
         const newRetry = retryCount + 1
         setRetryCount(newRetry)
-        if (newRetry >= 3) setShowSkip(true)
+        if (newRetry >= 3) setShowCancel(true)
         setCurrentExample(result?.example || '')
         setIsInputActive(true)
         return
@@ -220,36 +220,7 @@ export default function ChatScreen({ onComplete, onBack }) {
       // 정상 진행
       setCurrentStep(nextIdx)
       setRetryCount(0)
-      setShowSkip(false)
-      setCurrentExample(result?.example || '')
-      setIsInputActive(true)
-    } finally {
-      isProcessing.current = false
-    }
-  }
-
-  async function handleSkip() {
-    if (isProcessing.current) return
-    isProcessing.current = true
-    setIsInputActive(false)
-    setShowSkip(false)
-    setRetryCount(0)
-
-    try {
-      addMessage('이 질문은 건너뛸게요.', 'user')
-      const nextIdx = currentStep + 1
-      if (nextIdx >= STEPS.length) return
-
-      const nextStep = STEPS[nextIdx]
-      const skippedData = { ...interviewData, [step.id]: '' }
-      setInterviewData(skippedData)
-
-      setIsTyping(true)
-      const result = await fetchReaction(step.id, '(건너뜀)', skippedData, nextStep)
-      setIsTyping(false)
-
-      if (result?.message) addMessage(result.message, 'ai')
-      setCurrentStep(nextIdx)
+      setShowCancel(false)
       setCurrentExample(result?.example || '')
       setIsInputActive(true)
     } finally {
@@ -421,12 +392,6 @@ export default function ChatScreen({ onComplete, onBack }) {
           </div>
         )}
 
-        {showSkip && isInputActive && (
-          <button className="btn-skip-question" onClick={handleSkip}>
-            이 질문 건너뛰기 →
-          </button>
-        )}
-
         {isInputActive && step.inputType === 'category' && (
           <div className="category-zone">
             {step.options.map((opt) => (
@@ -463,7 +428,11 @@ export default function ChatScreen({ onComplete, onBack }) {
             )}
           </div>
         )}
-      </div>
+      {showCancel && (
+        <button className="btn-cancel-interview" onClick={onBack}>
+          인터뷰 취소
+        </button>
+      )}
     </div>
   )
 }
