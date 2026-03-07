@@ -75,10 +75,24 @@ Is this answer valid and relevant for the current interview step?
 
 ${canDeepDive
   ? `## Task 2 — Information Density (Intelligent Gate)
-If valid, evaluate as a veteran journalist: does this answer contain enough specific information to write a compelling news article?
-Apply 5W1H. Vague expressions alone ("a lot of money", "innovative service", "many users") without concrete substance = insufficient.
-- Sufficient → deep_dive: false
-- Insufficient → deep_dive: true (generate a targeted follow-up question)
+If valid, evaluate as a veteran journalist: can you write a compelling news article HEADLINE from this answer alone?
+
+To write a headline, ALL of the following must be present:
+① Specific identity of the service/business/achievement
+   — Generic terms ("웹서비스", "AI service", "app", "startup", "project") are NOT specific names
+   — Adjectives alone ("innovative", "AI-based", "혁신적인") do NOT count as identity
+   — What it specifically does or what problem it solves must be clear
+② At least one concrete figure (revenue, users, team size, rankings, etc.)
+③ The "who" — clear enough to write a story about this specific person's achievement
+
+If ANY of ①②③ is missing → deep_dive: true (ask a targeted follow-up)
+If ALL are present → deep_dive: false
+
+Examples:
+- "혁신적인 AI 기반 웹서비스, 월 2천만원, 혼자" → deep_dive: true (① missing: what the service specifically is/does)
+- "FutureMirror, an AI news article generator, $20K/month, solo" → deep_dive: false (all present)
+- "많이 힘들었고 포기하고 싶었어요" → deep_dive: true (no concrete event or story)
+- "12곳 투자 거절 후 혼자 밤새 개발, 6개월 만에 첫 고객 확보" → deep_dive: false (concrete story)
 ${deepDiveCount >= 1 ? '※ Ask from a completely different angle than the previous follow-up.\n' : ''}`
   : `## Task 2 — Intelligent Gate
 deep_dive: false (not applicable for this step)
