@@ -7,12 +7,28 @@ const INVALID_MESSAGES = {
   too_short:  '조금 더 자세히 말씀해 주시겠어요?',
 }
 
+// 현재 스텝의 기대 답변 방향 (검증용)
+function getCurrentStepContext(stepId, category, goalDate) {
+  const contexts = {
+    role_details: {
+      A: `${goalDate} 현재 이끌고 있는 사업, 매출, 팀 규모, 시장 영향력 등 성과에 관한 내용`,
+      B: `${goalDate} 현재 개발 중인 서비스·기술, 출시 제품, 기술적 성과에 관한 내용`,
+      C: `${goalDate} 현재 직무·포지션·역할과 이룬 성과에 관한 내용`,
+      D: `${goalDate} 현재 달성한 목표, 위치, 이룬 것들에 관한 내용`,
+    },
+    past_and_hardship: '꿈을 이루기 전 과거 상황, 가장 힘들었던 순간, 극복한 힘에 관한 내용',
+    future_message: '과거의 자신에게 전하고 싶은 한 마디 메시지',
+  }
+  const ctx = contexts[stepId]
+  if (!ctx) return null
+  return typeof ctx === 'string' ? ctx : (ctx[category] ?? ctx['D'])
+}
+
 // ① 검증 전용 호출 (temperature 0.2 — 일관성 우선)
-async function validateAnswer(stepId, answer, guide, apiKey) {
+async function validateAnswer(stepId, answer, context, apiKey) {
   const prompt = `당신은 인터뷰 답변 검증 시스템입니다. 아래 답변을 평가하세요.
 
-[인터뷰 단계]: ${stepId}
-[이 단계 질문 방향]: ${guide}
+[이 단계에서 기대하는 답변]: ${context}
 [사용자 답변]: ${answer}
 
 평가 기준:
@@ -81,9 +97,10 @@ export async function onRequestPost(context) {
     .replaceAll('{goal_date}', goalDate)
     .replaceAll('{category}', category)
 
-  // ① textarea 단계에서만 검증 수행
+  // ① textarea 단계에서만 검증 수행 (현재 스텝 맥락 기준)
   if (TEXTAREA_STEPS.has(stepId)) {
-    const validation = await validateAnswer(stepId, answer, guide, OPENAI_API_KEY)
+    const stepContext = getCurrentStepContext(stepId, interviewData?.category, goalDate)
+    const validation = await validateAnswer(stepId, answer, stepContext ?? guide, OPENAI_API_KEY)
     if (!validation.valid) {
       return Response.json({
         message: INVALID_MESSAGES[validation.reason] ?? INVALID_MESSAGES.nonsense,
