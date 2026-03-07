@@ -1,10 +1,30 @@
 const TEXTAREA_STEPS = new Set(['role_details', 'past_and_hardship', 'future_message'])
 
 const INVALID_MESSAGES = {
+  harmful:    '인터뷰 기록에 포함할 수 없는 내용이에요. 다시 한번 말씀해 주시겠어요?',
   offtopic:   '인터뷰 내용과 다른 이야기인 것 같아요. 다시 한번 말씀해 주시겠어요?',
   profanity:  '인터뷰 기록에는 부적절한 표현이 포함될 수 없어요. 조금 정리해서 다시 말씀해 주세요.',
   nonsense:   '답변을 이해하기 어려워요. 질문에 맞게 조금 더 자세히 입력해 주세요.',
   too_short:  '조금 더 자세히 말씀해 주시겠어요?',
+}
+
+// OpenAI Moderation API — 욕설·약물·폭력·혐오 등 안전 검사 (무료, 다국어)
+async function moderateContent(answer, apiKey) {
+  try {
+    const res = await fetch('https://api.openai.com/v1/moderations', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({ input: answer, model: 'omni-moderation-latest' }),
+    })
+    if (!res.ok) return false
+    const json = await res.json()
+    return json.results[0]?.flagged ?? false
+  } catch {
+    return false // 오류 시 통과 처리
+  }
 }
 
 // ① 검증 전용 호출 (temperature 0.2 — 일관성 우선)
@@ -80,8 +100,20 @@ export async function onRequestPost(context) {
     .replaceAll('{goal_date}', goalDate)
     .replaceAll('{category}', category)
 
-  // ① textarea 단계에서만 검증 수행 (AI가 실제로 던진 질문 기준)
+  // textarea 단계에서만 검증 수행
   if (TEXTAREA_STEPS.has(stepId)) {
+    // ① Moderation API: 욕설·약물·폭력·혐오 등 안전 검사
+    const isFlagged = await moderateContent(answer, OPENAI_API_KEY)
+    if (isFlagged) {
+      return Response.json({
+        message: INVALID_MESSAGES.harmful,
+        example: '',
+        proceed: false,
+        reason: 'harmful',
+      })
+    }
+
+    // ② validateAnswer: 이탈·무의미·부정어·짧은 답변 등 의미 검증
     const validation = await validateAnswer(stepId, answer, lastAiQuestion, OPENAI_API_KEY)
     if (!validation.valid) {
       return Response.json({
