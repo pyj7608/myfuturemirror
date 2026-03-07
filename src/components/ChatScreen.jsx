@@ -47,6 +47,23 @@ function truncatePlaceholder(text, maxLines = 3, maxChars = 22) {
   return trimmed.join('\n')
 }
 
+// Layer 1: 무의미 입력 감지 (API 호출 없이 즉시 차단)
+function isNonsenseInput(text) {
+  const t = text.trim()
+  if (/^[ㄱ-ㅎㅏ-ㅣ\s]+$/.test(t)) return true          // 자모만 연속
+  if (t.length >= 5 && /^(.)\1+$/.test(t)) return true  // 같은 문자 5개 이상 반복
+  return false
+}
+
+const PROFANITY_LIST = [
+  '씨발', '시발', '병신', '개새끼', '지랄', '닥쳐', '미친놈',
+  '보지', '자지', '씹', '창녀', '느금마', 'tlqkf', 'ㅅㅂ', 'ㅂㅅ',
+]
+function hasProfanity(text) {
+  const lower = text.toLowerCase()
+  return PROFANITY_LIST.some((w) => lower.includes(w))
+}
+
 async function fetchReaction(stepId, answer, interviewData, nextStep) {
   try {
     const res = await fetch('/api/get-reaction', {
@@ -73,6 +90,8 @@ export default function ChatScreen({ onComplete, onBack }) {
   const [photoDataUrl, setPhotoDataUrl] = useState(null)
   const [interviewData, setInterviewData] = useState({})
   const [currentExample, setCurrentExample] = useState('')
+  const [retryCount, setRetryCount] = useState(0)
+  const [showSkip, setShowSkip] = useState(false)
   const messagesEndRef = useRef(null)
   const hasInit = useRef(false)
   const isProcessing = useRef(false)
@@ -108,6 +127,38 @@ export default function ChatScreen({ onComplete, onBack }) {
     setIsInputActive(false)
 
     try {
+      const inputType = STEPS[currentStep]?.inputType
+
+      // Layer 1: 무의미 입력 차단 (textarea 한정)
+      if (inputType === 'textarea' && isNonsenseInput(answerValue)) {
+        addMessage(displayText || answerValue, 'user')
+        setInputValue('')
+        const newRetry = retryCount + 1
+        setRetryCount(newRetry)
+        if (newRetry >= 3) setShowSkip(true)
+        setIsTyping(true)
+        await delay(600)
+        setIsTyping(false)
+        addMessage('답변을 이해하기 어려워요. 질문에 맞게 조금 더 자세히 입력해 주세요.', 'ai')
+        setIsInputActive(true)
+        return
+      }
+
+      // Layer 1: 욕설 차단 (text + textarea)
+      if ((inputType === 'text' || inputType === 'textarea') && hasProfanity(answerValue)) {
+        addMessage(displayText || answerValue, 'user')
+        setInputValue('')
+        const newRetry = retryCount + 1
+        setRetryCount(newRetry)
+        if (newRetry >= 3 && inputType === 'textarea') setShowSkip(true)
+        setIsTyping(true)
+        await delay(600)
+        setIsTyping(false)
+        addMessage('인터뷰 기록에는 부적절한 표현이 포함될 수 없어요. 조금 정리해서 다시 말씀해 주세요.', 'ai')
+        setIsInputActive(true)
+        return
+      }
+
       const newData = { ...interviewData, [answerId]: answerValue }
       setInterviewData(newData)
       addMessage(displayText || answerValue, 'user')
@@ -118,14 +169,15 @@ export default function ChatScreen({ onComplete, onBack }) {
       setCurrentExample('')
 
       const nextIdx = currentStep + 1
-      setCurrentStep(nextIdx)
-
       if (nextIdx >= STEPS.length) return
 
       const nextStep = STEPS[nextIdx]
 
       // 카테고리 선택 후: 날짜 질문 하드코딩 (API 불필요)
       if (answerId === 'category') {
+        setCurrentStep(nextIdx)
+        setRetryCount(0)
+        setShowSkip(false)
         setIsTyping(true)
         await delay(700)
         setIsTyping(false)
@@ -136,6 +188,9 @@ export default function ChatScreen({ onComplete, onBack }) {
 
       // 이름 입력 후: 카테고리 질문 하드코딩 (API 불필요)
       if (answerId === 'name') {
+        setCurrentStep(nextIdx)
+        setRetryCount(0)
+        setShowSkip(false)
         setIsTyping(true)
         await delay(700)
         setIsTyping(false)
@@ -151,6 +206,50 @@ export default function ChatScreen({ onComplete, onBack }) {
       if (result?.message) {
         addMessage(result.message, 'ai')
       }
+
+      // proceed: false → 현재 스텝 유지, 재시도 카운트 증가
+      if (result?.proceed === false) {
+        const newRetry = retryCount + 1
+        setRetryCount(newRetry)
+        if (newRetry >= 3) setShowSkip(true)
+        setCurrentExample(result?.example || '')
+        setIsInputActive(true)
+        return
+      }
+
+      // 정상 진행
+      setCurrentStep(nextIdx)
+      setRetryCount(0)
+      setShowSkip(false)
+      setCurrentExample(result?.example || '')
+      setIsInputActive(true)
+    } finally {
+      isProcessing.current = false
+    }
+  }
+
+  async function handleSkip() {
+    if (isProcessing.current) return
+    isProcessing.current = true
+    setIsInputActive(false)
+    setShowSkip(false)
+    setRetryCount(0)
+
+    try {
+      addMessage('이 질문은 건너뛸게요.', 'user')
+      const nextIdx = currentStep + 1
+      if (nextIdx >= STEPS.length) return
+
+      const nextStep = STEPS[nextIdx]
+      const skippedData = { ...interviewData, [step.id]: '' }
+      setInterviewData(skippedData)
+
+      setIsTyping(true)
+      const result = await fetchReaction(step.id, '(건너뜀)', skippedData, nextStep)
+      setIsTyping(false)
+
+      if (result?.message) addMessage(result.message, 'ai')
+      setCurrentStep(nextIdx)
       setCurrentExample(result?.example || '')
       setIsInputActive(true)
     } finally {
@@ -320,6 +419,12 @@ export default function ChatScreen({ onComplete, onBack }) {
               onClick={() => handleAnswer(step.id, inputValue.trim())}
             >↑</button>
           </div>
+        )}
+
+        {showSkip && isInputActive && (
+          <button className="btn-skip-question" onClick={handleSkip}>
+            이 질문 건너뛰기 →
+          </button>
         )}
 
         {isInputActive && step.inputType === 'category' && (

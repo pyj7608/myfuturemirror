@@ -388,6 +388,19 @@ body {
 }
 .btn-skip:hover { background: var(--border); color: var(--text); }
 
+.btn-skip-question {
+  width: 100%;
+  background: transparent;
+  color: var(--muted);
+  border: none;
+  padding: 6px 0 2px;
+  font-size: 13px;
+  cursor: pointer;
+  text-align: right;
+  transition: color 0.15s;
+}
+.btn-skip-question:hover { color: var(--text); }
+
 /* ===== 로딩 ===== */
 .loading-overlay {
   position: fixed;
