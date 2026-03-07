@@ -127,14 +127,21 @@ export default function ChatScreen({ onComplete, onBack }) {
       // 카테고리 선택 후: 날짜 질문 하드코딩 (API 불필요)
       if (answerId === 'category') {
         const deptMap = { A: '경제부', B: 'IT부', C: '커리어부', D: '문화부' }
+        const momentMap = {
+          A: '사업의 결실을 거두신 그날',
+          B: '기술로 세상을 바꾸신 그날',
+          C: '꿈의 자리에 오르신 그날',
+          D: '목표를 이루신 그날',
+        }
         const dept = deptMap[answerValue] || '특집부'
+        const moment = momentMap[answerValue] || '꿈을 이루신 그날'
         setCurrentStep(nextIdx)
         setRetryCount(0)
         setShowCancel(false)
         setIsTyping(true)
         await delay(700)
         setIsTyping(false)
-        addMessage(`${newData.name}님, 오늘 인터뷰를 맡은 ${dept} 기자입니다. 자, 이제 타임머신을 타고 ${newData.name}님이 정점에 서 계실 그날로 가보겠습니다. 그 역사적인 날은 몇 년 몇 월 며칠인가요?`, 'ai')
+        addMessage(`${newData.name}님, 오늘 인터뷰를 맡은 ${dept} 기자입니다. 자, 이제 타임머신을 타고 ${newData.name}님이 ${moment}로 가보겠습니다. 그 역사적인 날은 몇 년 몇 월 며칠인가요?`, 'ai')
         setIsInputActive(true)
         return
       }
